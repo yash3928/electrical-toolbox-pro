@@ -12,6 +12,8 @@ function init(){
   $('conduitBtn').addEventListener('click', recommendConduit);
   $('cableType').addEventListener('change', initCableSelect);
   $('cableBtn').addEventListener('click', recommendCable);
+  $('energyBtn').addEventListener('click', calculateEnergy);
+  $('energyResetBtn').addEventListener('click', resetEnergy);
   updateInputMode();
 }
 
@@ -286,4 +288,127 @@ function toast(msg){
   t.textContent=msg;
   document.body.appendChild(t);
   setTimeout(()=>t.remove(),1800);
+}
+
+
+function won(n){
+  if(!isFinite(n)) return '-';
+  return Math.round(n).toLocaleString('ko-KR') + '원';
+}
+function num(n, digits=2){
+  if(!isFinite(n)) return '-';
+  return Number(n).toLocaleString('ko-KR', {maximumFractionDigits:digits});
+}
+function getVal(id){
+  const v = parseFloat($(id).value);
+  return isFinite(v) ? v : 0;
+}
+
+function calculateEnergy(){
+  const mode = $('energyMode').value;
+  const kw = getVal('energyKw');
+  const hours = getVal('energyHours');
+  const days = getVal('energyDays');
+  const rate = getVal('energyRate');
+  const basicRate = getVal('basicRate');
+  const contractKw = getVal('contractKw');
+  const beforeKw = getVal('beforeKw');
+  const afterKw = getVal('afterKw');
+  const investment = getVal('investment');
+
+  if(mode !== 'saving' && kw <= 0){
+    showEnergyError('부하용량 또는 절감전력(kW)을 입력하세요.');
+    return;
+  }
+
+  const dailyKwh = kw * hours;
+  const monthlyKwh = dailyKwh * days;
+  const yearlyKwh = monthlyKwh * 12;
+  const monthlyEnergyCharge = monthlyKwh * rate;
+  const basicCharge = contractKw * basicRate;
+  const subtotal = basicCharge + monthlyEnergyCharge;
+  const vat = subtotal * 0.1;
+  const fund = monthlyEnergyCharge * 0.037; // 전력산업기반기금 일반 산식 참고용
+  const totalBill = subtotal + vat + fund;
+
+  let title = '전력량 계산 결과';
+  let mainRows = '';
+  let basis = '공식: 전력량(kWh)=전력(kW)×운전시간(h), 월 전력량=일 전력량×월 운전일수';
+  let copy = [];
+
+  if(mode === 'usage'){
+    title = '전력량 계산 결과';
+    mainRows = `
+      <div class="item"><div class="k">일 전력량</div><div class="v">${num(dailyKwh)} kWh/일</div></div>
+      <div class="item"><div class="k">월 전력량</div><div class="v">${num(monthlyKwh)} kWh/월</div></div>
+      <div class="item"><div class="k">연 전력량</div><div class="v">${num(yearlyKwh)} kWh/년</div></div>
+      <div class="item"><div class="k">전력량요금</div><div class="v">${rate ? won(monthlyEnergyCharge) + '/월' : '단가 입력 시 계산'}</div></div>`;
+    copy = [`■ 전력량 계산`, `전력: ${kw}kW`, `운전: ${hours}h/일 × ${days}일/월`, `월 전력량: ${num(monthlyKwh)}kWh`, `연 전력량: ${num(yearlyKwh)}kWh`, `예상 전력량요금: ${rate ? won(monthlyEnergyCharge) : '단가 미입력'}`];
+  }
+
+  if(mode === 'bill'){
+    title = '한전 전기요금 간편 계산';
+    mainRows = `
+      <div class="item"><div class="k">월 사용량</div><div class="v">${num(monthlyKwh)} kWh</div></div>
+      <div class="item"><div class="k">기본요금</div><div class="v">${won(basicCharge)}</div></div>
+      <div class="item"><div class="k">전력량요금</div><div class="v">${won(monthlyEnergyCharge)}</div></div>
+      <div class="item"><div class="k">부가세 10%</div><div class="v">${won(vat)}</div></div>
+      <div class="item"><div class="k">전력산업기반기금 참고</div><div class="v">${won(fund)}</div></div>
+      <div class="item"><div class="k">월 예상 합계</div><div class="v">${won(totalBill)}</div></div>`;
+    basis = '간편 공식: 기본요금=계약전력×기본요금단가, 전력량요금=월사용량×전력량단가, 합계≈기본요금+전력량요금+부가세+전력산업기반기금. 실제 한전 청구액은 계약종별·계절·시간대·역률·복지/환경요금 등에 따라 달라집니다.';
+    copy = [`■ 한전 전기요금 간편 계산`, `월 사용량: ${num(monthlyKwh)}kWh`, `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `월 예상 합계: ${won(totalBill)}`, `※ 실제 청구액은 한전 계약종별/계절/시간대 기준 확인 필요`];
+  }
+
+  if(mode === 'saving'){
+    let saveKw = kw;
+    if(beforeKw > 0 && afterKw >= 0 && beforeKw >= afterKw){
+      saveKw = beforeKw - afterKw;
+    }
+    const saveRate = beforeKw > 0 ? (saveKw / beforeKw * 100) : 0;
+    const saveDailyKwh = saveKw * hours;
+    const saveMonthlyKwh = saveDailyKwh * days;
+    const saveYearlyKwh = saveMonthlyKwh * 12;
+    const saveMonthlyCost = saveMonthlyKwh * rate;
+    const saveYearlyCost = saveMonthlyCost * 12;
+    const paybackMonths = saveMonthlyCost > 0 ? investment / saveMonthlyCost : 0;
+    title = '전력절감 계획 계산 결과';
+    mainRows = `
+      <div class="item"><div class="k">절감전력</div><div class="v">${num(saveKw,3)} kW</div></div>
+      <div class="item"><div class="k">절감률</div><div class="v">${beforeKw ? num(saveRate,1)+'%' : '기존전력 입력 시 계산'}</div></div>
+      <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveMonthlyKwh)} kWh/월</div></div>
+      <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(saveYearlyKwh)} kWh/년</div></div>
+      <div class="item"><div class="k">월 절감금액</div><div class="v">${rate ? won(saveMonthlyCost) : '단가 입력 시 계산'}</div></div>
+      <div class="item"><div class="k">연 절감금액</div><div class="v">${rate ? won(saveYearlyCost) : '단가 입력 시 계산'}</div></div>
+      <div class="item full"><div class="k">투자회수기간</div><div class="v">${investment && rate ? num(paybackMonths,1)+'개월' : '투자비·단가 입력 시 계산'}</div></div>`;
+    basis = '절감 공식: 절감전력=기존전력-개선후전력, 절감률=절감전력÷기존전력×100, 절감전력량=절감전력×운전시간, 절감금액=절감전력량×전력량요금단가, 회수기간=투자비÷월절감금액';
+    copy = [`■ 전력절감 계획 계산`, `절감전력: ${num(saveKw,3)}kW`, `절감률: ${beforeKw ? num(saveRate,1)+'%' : '미계산'}`, `월 절감전력량: ${num(saveMonthlyKwh)}kWh`, `연 절감전력량: ${num(saveYearlyKwh)}kWh`, `월 절감금액: ${rate ? won(saveMonthlyCost) : '단가 미입력'}`, `연 절감금액: ${rate ? won(saveYearlyCost) : '단가 미입력'}`, `투자회수기간: ${investment && rate ? num(paybackMonths,1)+'개월' : '미계산'}`];
+  }
+
+  $('energyResult').innerHTML = `
+    <h3>${title}</h3>
+    <div class="resultGrid">${mainRows}</div>
+    <div class="basis">${basis}</div>
+    <button class="copyBtn" data-copy="${escapeHtml(copy.join('\n'))}">결과 복사하기</button>
+  `;
+  $('energyResult').classList.remove('hidden');
+  bindCopyButtons();
+}
+
+function showEnergyError(message){
+  $('energyResult').innerHTML = `<div class="item error">${message}</div>`;
+  $('energyResult').classList.remove('hidden');
+}
+
+function resetEnergy(){
+  $('energyMode').value = 'usage';
+  $('energyKw').value = '';
+  $('energyHours').value = '8';
+  $('energyDays').value = '30';
+  $('energyRate').value = '';
+  $('basicRate').value = '';
+  $('contractKw').value = '';
+  $('beforeKw').value = '';
+  $('afterKw').value = '';
+  $('investment').value = '';
+  $('energyResult').classList.add('hidden');
 }

@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 2.1</p>
+        <p class="eyebrow">KEC Edition · Ver 2.2</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">전기 실무 자재 추천기</p>
       </div>
@@ -20,6 +20,7 @@
       <button class="tab active" data-tab="motor">모터 자재 선정</button>
       <button class="tab" data-tab="conduit">전선관 부속 선정</button>
       <button class="tab" data-tab="cable">케이블 자재 선정</button>
+      <button class="tab" data-tab="energy">전력·요금·절감 계산</button>
     </nav>
 
     <section id="motor" class="panel active">
@@ -143,6 +144,68 @@
       </div>
 
       <div id="cableResult" class="result hidden"></div>
+    </section>
+
+
+
+    <section id="energy" class="panel">
+      <div class="card">
+        <h2>전력량 · 전기요금 · 절감 계산</h2>
+        <p class="help">전력절감 계획서 작성에 필요한 kWh, 절감률, 예상 요금, 투자회수기간을 계산합니다. 한전 요금은 계약종별·계절·시간대별로 달라지므로 단가는 직접 입력 방식으로 구성했습니다.</p>
+
+        <div class="grid">
+          <label>계산 유형
+            <select id="energyMode">
+              <option value="usage">전력량 계산</option>
+              <option value="bill">한전 전기요금 간편 계산</option>
+              <option value="saving">전력절감 계획 계산</option>
+            </select>
+          </label>
+
+          <label>부하용량 또는 절감전력(kW)
+            <input id="energyKw" type="number" step="0.001" min="0" placeholder="예: 9.792" />
+          </label>
+
+          <label>일 운전시간(h/일)
+            <input id="energyHours" type="number" step="0.1" min="0" value="8" />
+          </label>
+
+          <label>월 운전일수(일/월)
+            <input id="energyDays" type="number" step="1" min="0" value="30" />
+          </label>
+
+          <label>전력량요금 단가(원/kWh)
+            <input id="energyRate" type="number" step="0.1" min="0" placeholder="예: 150" />
+          </label>
+
+          <label>기본요금 단가(원/kW) <span class="small">요금 계산 시 선택</span>
+            <input id="basicRate" type="number" step="1" min="0" placeholder="예: 7220" />
+          </label>
+
+          <label>계약전력(kW) <span class="small">요금 계산 시 선택</span>
+            <input id="contractKw" type="number" step="0.1" min="0" placeholder="예: 100" />
+          </label>
+
+          <label>기존 전력(kW) <span class="small">절감률 계산 시 선택</span>
+            <input id="beforeKw" type="number" step="0.001" min="0" placeholder="예: 78.825" />
+          </label>
+
+          <label>개선 후 전력(kW) <span class="small">절감률 계산 시 선택</span>
+            <input id="afterKw" type="number" step="0.001" min="0" placeholder="예: 56.886" />
+          </label>
+
+          <label>투자비(원) <span class="small">회수기간 계산 시 선택</span>
+            <input id="investment" type="number" step="1000" min="0" placeholder="예: 5000000" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="energyBtn" class="primary">계산하기</button>
+          <button id="energyResetBtn" class="secondary">초기화</button>
+        </div>
+      </div>
+
+      <div id="energyResult" class="result hidden"></div>
     </section>
 
     <footer class="notice">
