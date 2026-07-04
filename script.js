@@ -1,4 +1,6 @@
-function qs(id) { return document.getElementById(id); }
+function qs(id) {
+  return document.getElementById(id);
+}
 
 function formatNumber(num, digits = 1) {
   return Number(num).toLocaleString('ko-KR', { maximumFractionDigits: digits });
@@ -28,11 +30,11 @@ function populateSelects() {
 }
 
 function getPhaseMode() {
-  return document.querySelector('input[name="phaseMode"]:checked').value;
+  return qs('phaseMode').value;
 }
 
 function getInputMode() {
-  return document.querySelector('input[name="inputMode"]:checked').value;
+  return qs('inputMode').value;
 }
 
 function getInstallMode() {
@@ -51,14 +53,14 @@ function getSelectedCapacity() {
 
   if (mode === 'hp') {
     const hp = Number(qs('hpSelect').value);
-    const found = MOTOR_SIZES.find((item) => item.hp === hp);
-    return { hp: found.hp, kw: found.kw, isStandard: true };
+    const found = MOTOR_SIZES.find((item) => Number(item.hp) === hp);
+    return found ? { hp: found.hp, kw: found.kw, isStandard: true } : null;
   }
 
   if (mode === 'kwSelect') {
     const kw = Number(qs('kwSelect').value);
-    const found = MOTOR_SIZES.find((item) => item.kw === kw);
-    return { hp: found.hp, kw: found.kw, isStandard: true };
+    const found = MOTOR_SIZES.find((item) => Number(item.kw) === kw);
+    return found ? { hp: found.hp, kw: found.kw, isStandard: true } : null;
   }
 
   const kw = Number(qs('kwInput').value);
@@ -196,28 +198,17 @@ async function copyResult() {
   if (!rec) return;
 
   const hpText = rec.isStandard ? `${rec.hp}HP` : `약 ${formatNumber(rec.hp, 1)}HP`;
-  const text = `[Electrical Toolbox Pro]
-` +
-    `모터: ${hpText} (${formatNumber(rec.kw, 2)}kW), ${rec.standard.label}
-` +
-    `설치상황: ${rec.conduitPackage.installLabel}
-` +
-    `계산전류: ${formatNumber(rec.current)}A
-` +
-    `MCCB: ${rec.mccb}
-` +
-    `ELB: ${rec.elb}
-` +
-    `케이블: ${rec.cableText}
-` +
-    `터미널: ${rec.terminal}
-` +
-    `전선관: ${rec.conduit}
-` +
-    `부속자재: ${rec.conduitPackage.accessory}
-` +
-    `홀커터: ${rec.conduitPackage.holeCutter} (${rec.conduitPackage.holeNote})
-` +
+  const text = `[Electrical Toolbox Pro]\n` +
+    `모터: ${hpText} (${formatNumber(rec.kw, 2)}kW), ${rec.standard.label}\n` +
+    `설치상황: ${rec.conduitPackage.installLabel}\n` +
+    `계산전류: ${formatNumber(rec.current)}A\n` +
+    `MCCB: ${rec.mccb}\n` +
+    `ELB: ${rec.elb}\n` +
+    `케이블: ${rec.cableText}\n` +
+    `터미널: ${rec.terminal}\n` +
+    `전선관: ${rec.conduit}\n` +
+    `부속자재: ${rec.conduitPackage.accessory}\n` +
+    `홀커터: ${rec.conduitPackage.holeCutter} (${rec.conduitPackage.holeNote})\n` +
     `※ 간편 추천값이며, 포설조건/온도/집합보정/전압강하/차단용량/명판전류/제조사별 커넥터 치수는 현장 확인 필요`;
 
   try {
@@ -240,19 +231,17 @@ function showToast(message) {
 }
 
 function bindEvents() {
-  document.querySelectorAll('input[name="inputMode"]').forEach((radio) => {
-    radio.addEventListener('change', () => {
-      switchInputMode();
-      recommendMaterial();
-    });
+  qs('inputMode').addEventListener('change', () => {
+    switchInputMode();
+    recommendMaterial();
   });
-  document.querySelectorAll('input[name="phaseMode"]').forEach((radio) => {
-    radio.addEventListener('change', recommendMaterial);
+
+  ['phaseMode', 'hpSelect', 'kwSelect', 'kwInput', 'pfInput', 'effInput', 'installMode'].forEach((id) => {
+    const el = qs(id);
+    el.addEventListener('input', recommendMaterial);
+    el.addEventListener('change', recommendMaterial);
   });
-  ['hpSelect', 'kwSelect', 'kwInput', 'pfInput', 'effInput', 'installMode'].forEach((id) => {
-    qs(id).addEventListener('input', recommendMaterial);
-    qs(id).addEventListener('change', recommendMaterial);
-  });
+
   qs('recommendBtn').addEventListener('click', recommendMaterial);
   qs('copyBtn').addEventListener('click', copyResult);
 }
