@@ -8,3 +8,15 @@ textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px
 .mini.secondary,.secondary.mini{background:#f2f4f7;color:#344054}
 .time-picker{border:1px solid var(--line);border-radius:16px;background:#fff;padding:14px;margin:14px 0;box-shadow:0 8px 20px rgba(16,24,40,.08)}
 .time-picker-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.picker-status{font-size:13px;color:#475467;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:8px;margin:10px 0}.time-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.time-slot{height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12px;cursor:pointer}.time-slot:hover{background:#eef4ff}.time-slot.selected{background:#1f6feb;color:white;border-color:#1f6feb}.actions.compact{margin-top:10px;display:flex;gap:8px}@media(max-width:520px){.time-grid{grid-template-columns:repeat(4,1fr)}.time-picker-head{display:block}.time-slot{height:34px;font-size:11px}}
+
+/* Ver 5.0 전력절감 보고형식 */
+.equipment-box{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#f8fafc}
+.equipment-list{margin-top:10px;display:grid;gap:8px}
+.equipment-row{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;font-size:14px}
+.equipment-row strong{color:var(--text)}
+.equipment-row button{padding:6px 10px;border-radius:8px;font-size:12px}
+.report-box{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px;margin-top:14px;line-height:1.65}
+.report-box h4{margin:0 0 8px;font-size:15px}
+.report-box ol{margin:0;padding-left:20px}
+.report-box li{margin-bottom:10px}
+.report-box .calc{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;font-size:13px;color:var(--muted)}

@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Electrical Toolbox Pro - KEC Edition</title>
-  <link rel="stylesheet" href="style.css?v=4.2" />
+  <link rel="stylesheet" href="style.css?v=5.0" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 4.6</p>
+        <p class="eyebrow">KEC Edition · Ver 5.0</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">KEC 기반 전기 실무 보조 툴</p>
       </div>
@@ -232,12 +232,22 @@
               <option value="power">전력량 절감</option>
             </select>
           </label>
+
+          <label>계산 구분
+            <select id="savingScope">
+              <option value="load" selected>부하별 전력절감</option>
+              <option value="equipment">설비별 전력절감</option>
+            </select>
+          </label>
         </div>
 
         <div id="timeSavingBox">
           <h3>운전시간 개선</h3>
           <div class="grid">
-            <label>부하용량(kW)
+            <label id="loadNameWrap">부하명(선택)
+              <input id="loadName" type="text" placeholder="예: 에어컨, 온풍기, 조명" />
+            </label>
+            <label id="loadKwTimeWrap">부하용량(kW)
               <input id="loadKwTime" type="number" step="0.001" min="0" placeholder="예: 45" />
             </label>
             <label>기존 가동 시간
@@ -249,10 +259,10 @@
               <button type="button" class="mini time-pick-btn" data-target="newRunRanges">시간 선택</button>
             </label>
             <label>기존 정지 시간(분/시간, 선택)
-              <input id="oldStopMinutes" type="number" step="1" min="0" placeholder="예: 30" />
+              <input id="oldStopMinutes" type="number" step="1" min="0" max="59" placeholder="예: 30" />
             </label>
             <label>변경 정지 시간(분/시간, 선택)
-              <input id="newStopMinutes" type="number" step="1" min="0" placeholder="예: 35" />
+              <input id="newStopMinutes" type="number" step="1" min="0" max="59" placeholder="예: 40" />
             </label>
             <input id="oldLightHours" type="hidden" value="0" />
             <input id="oldMidHours" type="hidden" value="0" />
@@ -261,7 +271,27 @@
             <input id="newMidHours" type="hidden" value="0" />
             <input id="newPeakHours" type="hidden" value="0" />
           </div>
-          <p class="help small">가동 시간은 여러 구간 입력이 가능합니다. 예: <b>08:00-11:00, 13:00-15:00</b>. 가동 시간을 비워두면 24시간 연속운전으로 계산합니다. 입력한 시간은 검침월 계절 기준으로 경부하·중간부하·최대부하에 자동 배분되어 결과에만 표시됩니다.</p>
+          <p class="help small">가동 시간은 여러 구간 입력이 가능합니다. 예: <b>08:00-11:00, 13:00-15:00</b>. 입력한 시간은 검침월 계절 기준으로 경부하·중간부하·최대부하에 자동 배분되어 결과에만 표시됩니다.</p>
+
+          <div id="equipmentBox" class="equipment-box hidden">
+            <h3>설비 설치현황</h3>
+            <p class="help small">정확성을 위해 설비명, 부하용량, 대수는 명판 또는 현장 확인값을 직접 입력합니다. 여러 설비를 추가하면 총 부하가 자동 합산됩니다.</p>
+            <div class="grid">
+              <label>설비명
+                <input id="equipmentName" type="text" placeholder="예: 유량조정조 교반기" />
+              </label>
+              <label>부하용량(kW/대)
+                <input id="equipmentKw" type="number" step="0.001" min="0" placeholder="예: 5.5" />
+              </label>
+              <label>대수
+                <input id="equipmentCount" type="number" step="1" min="1" value="1" />
+              </label>
+            </div>
+            <div class="actions compact">
+              <button type="button" id="equipmentAddBtn" class="secondary">설비 추가</button>
+            </div>
+            <div id="equipmentList" class="equipment-list muted">등록된 설비가 없습니다.</div>
+          </div>
         </div>
 
         <div id="powerSavingBox" class="hidden">
@@ -315,11 +345,11 @@
 
 
     <footer class="notice">
-      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 4.6는 24시간 설비 기본값, 정지시간(분/시간) 반영, 24시간 기본 운전, 계절별 연간 절감금액 자동 계산을 개선한 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
+      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 5.0은 부하별/설비별 전력절감 보고형식, 계절별 시간대 자동반영, 정지시간(분/시간) 반영을 개선한 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
     </footer>
   </main>
 
-  <script src="database.js?v=4.6"></script>
-  <script src="script.js?v=4.6"></script>
+  <script src="database.js?v=5.0"></script>
+  <script src="script.js?v=5.0"></script>
 </body>
 </html>
