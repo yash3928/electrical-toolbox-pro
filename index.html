@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Electrical Toolbox Pro</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>⚡ Electrical Toolbox Pro</h1>
+      <p class="subtitle">KEC 기반 3상 380V 모터 실무 자재 추천기 Ver 1.0</p>
+      <div class="notice">
+        기본 조건: 3상 380V 유도전동기, 직입기동, CV 4C 케이블, 일반 실내·단거리 배선 기준입니다. 실제 적용 전에는 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량을 반드시 확인하세요.
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <h2>🔍 모터 자재 추천</h2>
+
+        <div class="field">
+          <span class="label">입력 방식</span>
+          <div class="radio-row">
+            <label class="radio-card">
+              <input type="radio" name="inputMode" value="hp" checked /> HP
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="inputMode" value="kw" /> kW
+            </label>
+          </div>
+        </div>
+
+        <div class="field" id="hpGroup">
+          <label class="label" for="hpSelect">모터 마력</label>
+          <select id="hpSelect"></select>
+        </div>
+
+        <div class="field hidden" id="kwGroup">
+          <label class="label" for="kwSelect">모터 출력</label>
+          <select id="kwSelect"></select>
+        </div>
+
+        <div class="field">
+          <span class="label">전압</span>
+          <select disabled>
+            <option>3상 380V</option>
+          </select>
+        </div>
+
+        <div class="button-row">
+          <button class="primary-btn" onclick="recommendMaterials()">자재 추천</button>
+          <button class="ghost-btn" onclick="resetSelection()">초기화</button>
+        </div>
+      </div>
+
+      <div class="card hidden" id="resultPanel">
+        <h2>✅ 추천 결과</h2>
+        <div class="result-list">
+          <div class="result-item"><strong>모터</strong><span id="motorInfo">-</span></div>
+          <div class="result-item"><strong>정격전류</strong><span id="currentInfo">-</span></div>
+          <div class="result-item"><strong>차단기</strong><span id="mccbInfo">-</span></div>
+          <div class="result-item"><strong>누전차단기</strong><span id="elbInfo">-</span></div>
+          <div class="result-item"><strong>케이블</strong><span id="cableInfo">-</span></div>
+          <div class="result-item"><strong>터미널</strong><span id="terminalInfo">-</span></div>
+          <div class="result-item"><strong>전선관</strong><span id="conduitInfo">-</span></div>
+        </div>
+
+        <div class="basis">
+          <strong>KEC 간편 검토 기준</strong>
+          <p id="basisCurrent">-</p>
+          <p id="basisCable">-</p>
+        </div>
+
+        <div class="copy-area">
+          <button class="primary-btn" onclick="copyResult()">📋 결과 복사하기</button>
+          <textarea id="copyText" readonly></textarea>
+        </div>
+
+        <div class="footer-note">
+          ※ 본 추천은 빠른 실무 검토용입니다. 누전차단기 감도전류, 차단용량(kA), 케이블 포설조건, 장거리 전압강하, 인버터/스타델타 기동 여부는 현장 기준에 따라 별도 검토해야 합니다.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="database.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
