@@ -1418,3 +1418,197 @@ function calculateEnergy(){
     bindCopyButtons();
   }catch(e){ showEnergyError(e.message); }
 }
+
+
+/* Ver 4.6 overrides: 정지시간 분/시간, 24시간 기본값, 계절별 연간 절감금액, 보고형 결과 */
+function adjustHoursByStopMinutes(hours, stopMinutes){
+  const total = hoursTotal(hours);
+  const stopPerHour = Math.max(0, Number(stopMinutes || 0));
+  if(total <= 0) return {light:0, mid:0, peak:0};
+  const ratio = Math.max(0, (60 - Math.min(stopPerHour, 60)) / 60);
+  return {
+    light: Math.round((hours.light || 0) * ratio * 100) / 100,
+    mid: Math.round((hours.mid || 0) * ratio * 100) / 100,
+    peak: Math.round((hours.peak || 0) * ratio * 100) / 100
+  };
+}
+
+function formatRangeBreakdown(label, text, season, stopMinutes=0){
+  const d = splitRangeDetailsWithStop(text, season, stopMinutes);
+  const lines = [
+    formatPeriodLineIfAny('경부하', d.light),
+    formatPeriodLineIfAny('중간부하', d.mid),
+    formatPeriodLineIfAny('최대부하', d.peak)
+  ].filter(Boolean);
+  const defaultNote = d.fullDay ? '24시간 연속운전 기준' : '';
+  const stopNote = Number(stopMinutes || 0) > 0 ? `정지 ${num(stopMinutes,0)}분/시간 반영` : '';
+  const note = [defaultNote, stopNote].filter(Boolean).join(' · ');
+  return `${label}${note ? ` <span class="muted">(${note})</span>` : ''}<br>${lines.join('<br>') || '운전시간 없음'}`;
+}
+
+function calcStopMinuteNote(){
+  const oldM = getVal('oldStopMinutes');
+  const newM = getVal('newStopMinutes');
+  if(oldM <= 0 && newM <= 0) return '';
+  const diff = newM - oldM;
+  const oldRunRatio = Math.max(0, (60 - Math.min(oldM,60)) / 60) * 100;
+  const newRunRatio = Math.max(0, (60 - Math.min(newM,60)) / 60) * 100;
+  const diffText = diff === 0 ? '변동 없음' : (diff > 0 ? `정지시간 ${num(diff,0)}분/시간 증가 → 시간당 가동률 감소` : `정지시간 ${num(Math.abs(diff),0)}분/시간 감소 → 시간당 가동률 증가`);
+  return `<div class="item full"><div class="k">정지 시간 반영</div><div class="v">기존: ${num(oldM,0)}분/시간 · 변경: ${num(newM,0)}분/시간<br>기존 시간당 가동률 ${num(oldRunRatio,1)}% · 변경 시간당 가동률 ${num(newRunRatio,1)}%<br>${diffText}</div></div>`;
+}
+
+function seasonMonthCount(season){
+  return {summer:3, springAutumn:5, winter:4}[season] || 0;
+}
+
+function calcSeasonalAnnualTimeSaving(kw, days, oldText, newText, oldStop, newStop, tariff, climateRate, fuelRate){
+  let annualKwh = 0, annualMoney = 0;
+  const detail = [];
+  ['summer','springAutumn','winter'].forEach(season=>{
+    const months = seasonMonthCount(season);
+    const rates = getTouRates(tariff, season);
+    const oldHours = classifiedHoursWithStop(oldText, season, oldStop);
+    const newHours = classifiedHoursWithStop(newText, season, newStop);
+    const before = calcByTouHours(kw, days, oldHours, rates);
+    const after = calcByTouHours(kw, days, newHours, rates);
+    const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+    const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+    const saveKwh = before.kwh - after.kwh;
+    const saveMoney = beforeFee.total - afterFee.total;
+    annualKwh += saveKwh * months;
+    annualMoney += saveMoney * months;
+    detail.push(`${getSeasonLabel(season)} ${months}개월: ${num(saveKwh)}kWh/월 · ${won(saveMoney)}/월`);
+  });
+  return {annualKwh, annualMoney, detail};
+}
+
+function calcSeasonalAnnualPowerSaving(beforeKw, afterKw, days, runText, tariff, climateRate, fuelRate){
+  let annualKwh = 0, annualMoney = 0;
+  const detail = [];
+  ['summer','springAutumn','winter'].forEach(season=>{
+    const months = seasonMonthCount(season);
+    const rates = getTouRates(tariff, season);
+    const hours = classifiedHoursWithStop(runText, season, 0);
+    const before = calcByTouHours(beforeKw, days, hours, rates);
+    const after = calcByTouHours(afterKw, days, hours, rates);
+    const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+    const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+    const saveKwh = before.kwh - after.kwh;
+    const saveMoney = beforeFee.total - afterFee.total;
+    annualKwh += saveKwh * months;
+    annualMoney += saveMoney * months;
+    detail.push(`${getSeasonLabel(season)} ${months}개월: ${num(saveKwh)}kWh/월 · ${won(saveMoney)}/월`);
+  });
+  return {annualKwh, annualMoney, detail};
+}
+
+function formulaBox(lines){
+  return `<div class="item full"><div class="k">계산식</div><div class="v">${lines.join('<br>')}</div></div>`;
+}
+
+function calculateEnergy(){
+  try{
+    updateTariffInputs();
+    const tariff = getTariff();
+    const season = $('tariffSeason').value;
+    const rates = getTouRates(tariff, season);
+    const days = getVal('energyDays');
+    const contractKw = getVal('contractKw');
+    const climateRate = getVal('climateRate');
+    const fuelRate = getVal('fuelRate');
+    const basicCharge = contractKw * (tariff.basic || 0);
+    const savingType = $('savingType')?.value || 'time';
+    if(days <= 0) throw new Error('월 운전일수를 입력하세요.');
+    let title='', rows='', copy=[], basis='';
+
+    if(savingType === 'time'){
+      const kw = getVal('loadKwTime');
+      if(kw <= 0) throw new Error('부하용량(kW)을 입력하세요.');
+      const oldText = $('oldRunRanges')?.value || '';
+      const newText = $('newRunRanges')?.value || '';
+      const oldStop = getVal('oldStopMinutes');
+      const newStop = getVal('newStopMinutes');
+      const oldHours = classifiedHoursWithStop(oldText, season, oldStop);
+      const newHours = classifiedHoursWithStop(newText, season, newStop);
+      validateHours(oldHours, '기존 가동 시간');
+      validateHours(newHours, '변경 가동 시간');
+      const before = calcByTouHours(kw, days, oldHours, rates);
+      const after = calcByTouHours(kw, days, newHours, rates);
+      const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+      const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+      const saveKwh = before.kwh - after.kwh;
+      const saveMoney = beforeFee.total - afterFee.total;
+      const saveRate = before.kwh > 0 ? saveKwh / before.kwh * 100 : 0;
+      const annual = calcSeasonalAnnualTimeSaving(kw, days, oldText, newText, oldStop, newStop, tariff, climateRate, fuelRate);
+      title='운전시간 개선 절감효과';
+      rows = `
+        <div class="item full"><div class="k">보고용 요약</div><div class="v">부하용량 ${num(kw,3)}kW 설비의 운전시간 개선 시, 선택월 기준 월 ${num(saveKwh)}kWh, 연간 ${num(annual.annualKwh)}kWh 절감이 예상됩니다.<br>예상 절감금액은 선택월 기준 월 ${won(saveMoney)}, 계절별 요금 자동 반영 기준 연 ${won(annual.annualMoney)}입니다.</div></div>
+        <div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div>
+        <div class="item"><div class="k">부하용량</div><div class="v">${num(kw,3)} kW</div></div>
+        <div class="item"><div class="k">기본요금 참고</div><div class="v">${won(basicCharge)}</div></div>
+        <div class="item"><div class="k">기존 월 사용량</div><div class="v">${num(before.kwh)} kWh</div></div>
+        <div class="item"><div class="k">변경 월 사용량</div><div class="v">${num(after.kwh)} kWh</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div>
+        <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(annual.annualKwh)} kWh</div></div>
+        <div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div>
+        <div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div>
+        <div class="item"><div class="k">연 절감금액</div><div class="v">${won(annual.annualMoney)}</div></div>
+        <div class="item full"><div class="k">기존 시간대별 사용량</div><div class="v">${formatKwhBreakdown(before)}</div></div>
+        <div class="item full"><div class="k">변경 시간대별 사용량</div><div class="v">${formatKwhBreakdown(after)}</div></div>
+        <div class="item full"><div class="k">가동 시간 자동분류</div><div class="v">${formatRangeBreakdown('기존', oldText, season, oldStop)}<br><br>${formatRangeBreakdown('변경', newText, season, newStop)}</div></div>
+        ${calcStopMinuteNote()}
+        ${formulaBox([
+          '기존 월 사용량 = 부하용량 × 기존 가동시간 × 월 운전일수',
+          '변경 월 사용량 = 부하용량 × 변경 가동시간 × 월 운전일수',
+          '월 절감전력량 = 기존 월 사용량 - 변경 월 사용량',
+          '월 절감금액 = 기존 전력량요금 - 변경 전력량요금',
+          '연 절감금액 = 여름철·봄가을철·겨울철 요금을 각각 적용하여 합산'
+        ])}
+        <div class="item full"><div class="k">연간 계산 참고</div><div class="v">${annual.detail.join('<br>')}</div></div>`;
+      basis = '운전시간 개선: 가동 시간 입력이 없으면 24시간 연속운전으로 계산합니다. 정지시간은 분/시간으로 입력하며, 입력한 가동 시간 범위는 계절별 경부하·중간부하·최대부하로 자동 배분합니다.';
+      copy = ['■ 운전시간 개선 절감효과',`계약종별: ${tariff.label}`,`부하용량: ${num(kw,3)}kW`,`월 절감전력량: ${num(saveKwh)}kWh`,`연 절감전력량: ${num(annual.annualKwh)}kWh`,`월 절감금액: ${won(saveMoney)}`,`연 절감금액: ${won(annual.annualMoney)}`];
+    } else {
+      const beforeKw = getVal('beforeKw'), afterKw = getVal('afterKw');
+      if(beforeKw <= 0) throw new Error('기존전력(kW)을 입력하세요.');
+      if(afterKw < 0) throw new Error('개선후 전력(kW)을 입력하세요.');
+      if(afterKw > beforeKw) throw new Error('개선후 전력이 기존전력보다 큽니다.');
+      const runText = $('saveRunRanges')?.value || '';
+      const hours = classifiedHoursWithStop(runText, season, 0);
+      validateHours(hours, '가동 시간');
+      const before = calcByTouHours(beforeKw, days, hours, rates);
+      const after = calcByTouHours(afterKw, days, hours, rates);
+      const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+      const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+      const saveKw = beforeKw - afterKw;
+      const saveKwh = before.kwh - after.kwh;
+      const saveMoney = beforeFee.total - afterFee.total;
+      const saveRate = saveKw / beforeKw * 100;
+      const annual = calcSeasonalAnnualPowerSaving(beforeKw, afterKw, days, runText, tariff, climateRate, fuelRate);
+      title='전력량 절감효과';
+      rows = `
+        <div class="item full"><div class="k">보고용 요약</div><div class="v">기존전력 ${num(beforeKw,3)}kW에서 개선후 전력 ${num(afterKw,3)}kW로 감소 시, 선택월 기준 월 ${num(saveKwh)}kWh, 연간 ${num(annual.annualKwh)}kWh 절감이 예상됩니다.<br>예상 절감금액은 선택월 기준 월 ${won(saveMoney)}, 계절별 요금 자동 반영 기준 연 ${won(annual.annualMoney)}입니다.</div></div>
+        <div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div>
+        <div class="item"><div class="k">기존전력</div><div class="v">${num(beforeKw,3)} kW</div></div>
+        <div class="item"><div class="k">개선후 전력</div><div class="v">${num(afterKw,3)} kW</div></div>
+        <div class="item"><div class="k">절감전력</div><div class="v">${num(saveKw,3)} kW</div></div>
+        <div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div>
+        <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(annual.annualKwh)} kWh</div></div>
+        <div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div>
+        <div class="item"><div class="k">연 절감금액</div><div class="v">${won(annual.annualMoney)}</div></div>
+        <div class="item full"><div class="k">가동 시간 자동분류</div><div class="v">${formatRangeBreakdown('가동', runText, season, 0)}</div></div>
+        ${formulaBox([
+          '절감전력 = 기존전력 - 개선후 전력',
+          '월 절감전력량 = 절감전력 × 가동시간 × 월 운전일수',
+          '월 절감금액 = 기존 전력량요금 - 개선 후 전력량요금',
+          '연 절감금액 = 여름철·봄가을철·겨울철 요금을 각각 적용하여 합산'
+        ])}
+        <div class="item full"><div class="k">연간 계산 참고</div><div class="v">${annual.detail.join('<br>')}</div></div>`;
+      basis='전력량 절감: 가동 시간 입력이 없으면 24시간 연속운전으로 계산합니다. 기존전력과 개선후 전력 차이를 시간대별 가동 시간에 적용해 절감전력량과 절감금액을 계산합니다.';
+      copy=['■ 전력량 절감효과',`계약종별: ${tariff.label}`,`절감전력: ${num(saveKw,3)}kW`,`월 절감전력량: ${num(saveKwh)}kWh`,`연 절감전력량: ${num(annual.annualKwh)}kWh`,`월 절감금액: ${won(saveMoney)}`,`연 절감금액: ${won(annual.annualMoney)}`];
+    }
+    $('energyResult').innerHTML = `<h3>${title}</h3><div class="resultGrid">${rows}</div><div class="basis">${basis}</div><button class="copyBtn" data-copy="${escapeHtml(copy.join('\n'))}">결과 복사하기</button>`;
+    $('energyResult').classList.remove('hidden');
+    bindCopyButtons();
+  }catch(e){ showEnergyError(e.message); }
+}
