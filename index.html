@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 4.2</p>
+        <p class="eyebrow">KEC Edition · Ver 4.3</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">KEC 기반 전기 실무 보조 툴</p>
       </div>
@@ -137,13 +137,6 @@
             <select id="cableSq"></select>
           </label>
 
-          <label>접속 목적
-            <select id="cableUse">
-              <option value="panel">판넬/차단기 단자 접속</option>
-              <option value="motor">모터 단자함 접속</option>
-              <option value="junction">중간 접속/분기</option>
-            </select>
-          </label>
         </div>
 
         <div class="actions">
@@ -247,17 +240,36 @@
             <label>부하용량(kW)
               <input id="loadKwTime" type="number" step="0.001" min="0" placeholder="예: 45" />
             </label>
-            <label>기존 운전 시작
-              <input id="oldStartTime" type="time" value="" />
+            <label>기존 가동 시간
+              <input id="oldRunRanges" type="text" placeholder="예: 08:00-11:00, 13:00-15:00" />
             </label>
-            <label>기존 운전 종료
-              <input id="oldEndTime" type="time" value="" />
+            <label>변경 가동 시간
+              <input id="newRunRanges" type="text" placeholder="예: 22:00-06:00" />
             </label>
-            <label>변경 운전 시작
-              <input id="newStartTime" type="time" value="" />
+            <label>기존 정지 시간(참고)
+              <input id="oldStopRanges" type="text" placeholder="예: 11:00-13:00" />
             </label>
-            <label>변경 운전 종료
-              <input id="newEndTime" type="time" value="" />
+            <label>변경 정지 시간(참고)
+              <input id="newStopRanges" type="text" placeholder="예: 18:00-22:00" />
+            </label>
+            <label class="checkline">
+              <input id="inverterMode" type="checkbox" /> 인버터 Hz 기준 부하 산정
+            </label>
+            <label class="inverter-field hidden">기준 부하(kW)
+              <input id="invBaseKw" type="number" step="0.001" min="0" placeholder="예: 45" />
+            </label>
+            <label class="inverter-field hidden">기준 주파수(Hz)
+              <input id="invBaseHz" type="number" step="0.1" min="1" value="60" />
+            </label>
+            <label class="inverter-field hidden">운전 주파수(Hz)
+              <input id="invRunHz" type="number" step="0.1" min="0" placeholder="예: 45" />
+            </label>
+            <label class="inverter-field hidden">부하 특성
+              <select id="invExponent">
+                <option value="3">펌프/팬류 참고: Hz³</option>
+                <option value="2">토크성 부하 참고: Hz²</option>
+                <option value="1">정토크 근사: Hz</option>
+              </select>
             </label>
             <input id="oldLightHours" type="hidden" value="0" />
             <input id="oldMidHours" type="hidden" value="0" />
@@ -266,7 +278,7 @@
             <input id="newMidHours" type="hidden" value="0" />
             <input id="newPeakHours" type="hidden" value="0" />
           </div>
-          <p class="help small">시작/종료 시간만 입력하세요. 검침월 계절 기준으로 경부하·중간부하·최대부하 운전시간은 자동 계산되어 결과에만 표시됩니다. 예: 14:00~18:00은 계절에 따라 중간/최대부하로 자동 분류됩니다.</p>
+          <p class="help small">가동 시간은 여러 구간 입력이 가능합니다. 예: <b>08:00-11:00, 13:00-15:00</b>. 입력한 시간은 검침월 계절 기준으로 경부하·중간부하·최대부하에 자동 배분되어 결과에만 표시됩니다.</p>
         </div>
 
         <div id="powerSavingBox" class="hidden">
@@ -278,17 +290,14 @@
             <label>개선후 전력(kW)
               <input id="afterKw" type="number" step="0.001" min="0" placeholder="예: 56.886" />
             </label>
-            <label>운전 시작
-              <input id="saveStartTime" type="time" value="" />
-            </label>
-            <label>운전 종료
-              <input id="saveEndTime" type="time" value="" />
+            <label>가동 시간
+              <input id="saveRunRanges" type="text" placeholder="예: 08:00-11:00, 13:00-15:00" />
             </label>
             <input id="saveLightHours" type="hidden" value="0" />
             <input id="saveMidHours" type="hidden" value="0" />
             <input id="savePeakHours" type="hidden" value="0" />
           </div>
-          <p class="help small">운전 시작/종료 시간만 입력하세요. 경부하·중간부하·최대부하 운전시간은 자동 계산되어 결과에만 표시됩니다.</p>
+          <p class="help small">가동 시간은 여러 구간 입력이 가능합니다. 예: <b>08:00-11:00, 13:00-15:00</b>. 경부하·중간부하·최대부하 운전시간은 자동 계산되어 결과에만 표시됩니다.</p>
         </div>
 
         <label class="full">시간대 기준 안내
@@ -306,11 +315,11 @@
 
 
     <footer class="notice">
-      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 4.2는 KEC 검토 항목의 의미(IB·In·Iz)를 결과 화면에 가로 표기하여 검토 기준을 더 명확히 한 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
+      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 4.3은 전력절감 시간대 입력을 복수 시간범위 방식으로 개선하고, 인버터 Hz 기반 부하 산정 보조 기능을 추가한 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
     </footer>
   </main>
 
-  <script src="database.js?v=4.1"></script>
-  <script src="script.js?v=4.1"></script>
+  <script src="database.js?v=4.3"></script>
+  <script src="script.js?v=4.3"></script>
 </body>
 </html>
