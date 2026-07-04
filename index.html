@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 2.7</p>
+        <p class="eyebrow">KEC Edition · Ver 2.8</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">전기 실무 자재 추천기</p>
       </div>
@@ -212,6 +212,32 @@
               <option value="flat">일반 단가</option>
               <option value="tou">시간대별 단가</option>
             </select>
+          </label>
+
+          <label id="touAutoModeWrap">시간대별 사용량 산정
+            <select id="touAutoMode">
+              <option value="auto24">24시간 연속운전 자동산정</option>
+              <option value="autoDay">주간운전 08~18시 자동산정</option>
+              <option value="autoNight">야간운전 22~08시 자동산정</option>
+              <option value="customHours">시간대별 운전시간 직접입력</option>
+              <option value="manualKwh">사용량 kWh 직접입력</option>
+            </select>
+          </label>
+
+          <label id="lightHoursWrap">경부하 운전시간(h/일)
+            <input id="lightHours" type="number" step="0.1" min="0" value="10" />
+          </label>
+
+          <label id="midHoursWrap">중간부하 운전시간(h/일)
+            <input id="midHours" type="number" step="0.1" min="0" value="8" />
+          </label>
+
+          <label id="peakHoursWrap">최대부하 운전시간(h/일)
+            <input id="peakHours" type="number" step="0.1" min="0" value="6" />
+          </label>
+
+          <label id="touTimeInfoWrap" class="full">사용 시간대 안내
+            <textarea id="touTimeInfo" readonly rows="4"></textarea>
           </label>
 
           <label>부하용량 또는 절감전력(kW)

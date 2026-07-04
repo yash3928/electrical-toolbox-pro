@@ -20,6 +20,7 @@ function init(){
   $('tariffType').addEventListener('change', updateTariffInputs);
   $('tariffSeason').addEventListener('change', updateTariffInputs);
   $('tariffLoadMode').addEventListener('change', updateTariffInputs);
+  $('touAutoMode')?.addEventListener('change', updateTariffInputs);
   $('energyBtn').addEventListener('click', calculateEnergy);
   $('energyResetBtn').addEventListener('click', resetEnergy);
   updateInputMode();
@@ -98,6 +99,54 @@ function getSeasonLabel(season){
   return {summer:'여름철', springAutumn:'봄·가을철', winter:'겨울철'}[season] || season;
 }
 
+function getTouTimeGuide(season){
+  if(season === 'winter'){
+    return {
+      light:'경부하: 22:00~08:00',
+      mid:'중간부하: 08:00~09:00, 12:00~16:00, 19:00~22:00',
+      peak:'최대부하: 09:00~12:00, 16:00~19:00'
+    };
+  }
+  return {
+    light:'경부하: 22:00~08:00',
+    mid:'중간부하: 08:00~15:00, 21:00~22:00',
+    peak:'최대부하: 15:00~21:00'
+  };
+}
+
+function getTouPresetHours(mode, season){
+  if(mode === 'auto24') return {light:10, mid:8, peak:6, label:'24시간 연속운전'};
+  if(mode === 'autoNight') return {light:10, mid:0, peak:0, label:'야간운전 22~08시'};
+  if(mode === 'autoDay'){
+    if(season === 'winter') return {light:0, mid:5, peak:5, label:'주간운전 08~18시'};
+    return {light:0, mid:7, peak:3, label:'주간운전 08~18시'};
+  }
+  return null;
+}
+
+function updateTouTimeInfo(){
+  if(!$('touTimeInfo')) return;
+  const season = $('tariffSeason').value;
+  const guide = getTouTimeGuide(season);
+  const mode = $('touAutoMode')?.value || 'auto24';
+  const preset = getTouPresetHours(mode, season);
+  const h = preset || {light:getVal('lightHours'), mid:getVal('midHours'), peak:getVal('peakHours'), label:'직접입력'};
+  $('touTimeInfo').value = `${getSeasonLabel(season)} 시간대\n${guide.light}\n${guide.mid}\n${guide.peak}\n\n현재 산정: ${h.label} → 경부하 ${h.light}h/일, 중간부하 ${h.mid}h/일, 최대부하 ${h.peak}h/일`;
+}
+
+function applyTouAutoHours(){
+  if(!$('touAutoMode')) return;
+  const season = $('tariffSeason').value;
+  const mode = $('touAutoMode').value;
+  const preset = getTouPresetHours(mode, season);
+  if(preset){
+    $('lightHours').value = preset.light;
+    $('midHours').value = preset.mid;
+    $('peakHours').value = preset.peak;
+  }
+  updateTouTimeInfo();
+}
+
 function updateTariffInputs(){
   if(!$('tariffType')) return;
   const tariff = getTariff();
@@ -115,14 +164,21 @@ function updateTariffInputs(){
       $('energyRate').value = '';
       $('energyRate').placeholder = '시간대별 사용량으로 계산';
     }else{
-      // 시간대별 요금제를 단일 평균처럼 쓰고 싶을 때는 중간부하 단가를 기본값으로 표시
       $('energyRate').value = tariff.energy[season].mid;
       $('energyRate').placeholder = '중간부하 단가 자동입력';
     }
   }
 
   const touVisible = tariff.type === 'tou' && $('tariffLoadMode').value === 'tou';
-  ['lightKwhWrap','midKwhWrap','peakKwhWrap'].forEach(id=>$(id)?.classList.toggle('hidden', !touVisible));
+  ['touAutoModeWrap','lightHoursWrap','midHoursWrap','peakHoursWrap','touTimeInfoWrap','lightKwhWrap','midKwhWrap','peakKwhWrap'].forEach(id=>$(id)?.classList.toggle('hidden', !touVisible));
+  const mode = $('touAutoMode')?.value || 'auto24';
+  const manualKwh = mode === 'manualKwh';
+  const customHours = mode === 'customHours';
+  ['lightKwh','midKwh','peakKwh'].forEach(id=>{ if($(id)) $(id).readOnly = touVisible && !manualKwh; });
+  ['lightHours','midHours','peakHours'].forEach(id=>{ if($(id)) $(id).readOnly = touVisible && !customHours; });
+  ['lightHoursWrap','midHoursWrap','peakHoursWrap'].forEach(id=>$(id)?.classList.toggle('hidden', !touVisible || manualKwh));
+  if(touVisible && !manualKwh) applyTouAutoHours();
+  updateTouTimeInfo();
 }
 
 function getKw(){
@@ -415,15 +471,34 @@ function calculateEnergy(){
   const tariff = getTariff();
   const season = $('tariffSeason').value;
   const loadMode = $('tariffLoadMode').value;
-  const lightKwh = getVal('lightKwh');
-  const midKwh = getVal('midKwh');
-  const peakKwh = getVal('peakKwh');
+  let lightKwh = getVal('lightKwh');
+  let midKwh = getVal('midKwh');
+  let peakKwh = getVal('peakKwh');
   const climateRate = getVal('climateRate');
   const fuelRate = getVal('fuelRate');
   const isTouBill = mode === 'bill' && tariff.type === 'tou' && loadMode === 'tou';
+  let touHoursText = '';
+  if(isTouBill){
+    const autoMode = $('touAutoMode')?.value || 'auto24';
+    if(autoMode !== 'manualKwh'){
+      applyTouAutoHours();
+      const lh = getVal('lightHours');
+      const mh = getVal('midHours');
+      const ph = getVal('peakHours');
+      lightKwh = kw * lh * days;
+      midKwh = kw * mh * days;
+      peakKwh = kw * ph * days;
+      $('lightKwh').value = num(lightKwh,1).replace(/,/g,'');
+      $('midKwh').value = num(midKwh,1).replace(/,/g,'');
+      $('peakKwh').value = num(peakKwh,1).replace(/,/g,'');
+      touHoursText = `경부하 ${lh}h/일, 중간부하 ${mh}h/일, 최대부하 ${ph}h/일`;
+    }else{
+      touHoursText = '사용량 직접입력';
+    }
+  }
 
-  if(mode !== 'saving' && !isTouBill && kw <= 0){
-    showEnergyError('부하용량 또는 절감전력(kW)을 입력하세요. 시간대별 요금 계산은 경·중·최대부하 사용량을 입력하세요.');
+  if(mode !== 'saving' && (!isTouBill || (($('touAutoMode')?.value || 'auto24') !== 'manualKwh')) && kw <= 0){
+    showEnergyError('부하용량 또는 절감전력(kW)을 입력하세요. 시간대별 자동산정은 부하용량(kW)이 필요합니다.');
     return;
   }
 
@@ -471,6 +546,7 @@ function calculateEnergy(){
     mainRows = `
       <div class="item full"><div class="k">적용 계약종별</div><div class="v">${tariffText}</div></div>
       <div class="item"><div class="k">월 사용량</div><div class="v">${num(monthlyKwh)} kWh</div></div>
+      ${isTouBill ? `<div class="item full"><div class="k">시간대별 산정</div><div class="v">${touHoursText}<br>경 ${num(lightKwh)}kWh · 중 ${num(midKwh)}kWh · 최 ${num(peakKwh)}kWh</div></div>` : ''}
       <div class="item"><div class="k">기본요금</div><div class="v">${won(basicCharge)}</div></div>
       <div class="item"><div class="k">전력량요금</div><div class="v">${won(monthlyEnergyCharge)}</div></div>
       <div class="item"><div class="k">기후환경요금</div><div class="v">${won(climateCharge)}</div></div>
@@ -480,7 +556,7 @@ function calculateEnergy(){
       <div class="item"><div class="k">전력산업기반기금 2.7%</div><div class="v">${won(fund)}</div></div>
       <div class="item"><div class="k">월 예상 청구금액</div><div class="v">${won(totalBill)}</div></div>`;
     basis = '2026.6.1 시행 한전 요금표(종합) 일반용·산업용 주요 계약종별 반영. 전기요금=기본요금+전력량요금+기후환경요금+연료비조정요금, 부가가치세=전기요금×10%, 전력산업기반기금=전기요금×2.7%(10원 미만 절사), 청구금액=전기요금+부가세+전력산업기반기금. 실제 청구액은 역률요금, 감면/가산, 최대수요전력 등에 따라 달라집니다.';
-    copy = [`■ 한전 전기요금 간편 계산`, `계약종별: ${tariff.label}`, `계절: ${getSeasonLabel(season)}`, `월 사용량: ${num(monthlyKwh)}kWh`, `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `기후환경요금: ${won(climateCharge)}`, `연료비조정요금: ${won(fuelCharge)}`, `전기요금 소계: ${won(electricityCharge)}`, `부가세: ${won(vat)}`, `전력산업기반기금: ${won(fund)}`, `월 예상 청구금액: ${won(totalBill)}`, `※ 실제 청구액은 한전 고지서 기준 확인 필요`];
+    copy = [`■ 한전 전기요금 간편 계산`, `계약종별: ${tariff.label}`, `계절: ${getSeasonLabel(season)}`, `월 사용량: ${num(monthlyKwh)}kWh`, ...(isTouBill ? [`시간대별: ${touHoursText}`, `경부하 ${num(lightKwh)}kWh / 중간부하 ${num(midKwh)}kWh / 최대부하 ${num(peakKwh)}kWh`] : []), `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `기후환경요금: ${won(climateCharge)}`, `연료비조정요금: ${won(fuelCharge)}`, `전기요금 소계: ${won(electricityCharge)}`, `부가세: ${won(vat)}`, `전력산업기반기금: ${won(fund)}`, `월 예상 청구금액: ${won(totalBill)}`, `※ 실제 청구액은 한전 고지서 기준 확인 필요`];
   }
 
   if(mode === 'saving'){
@@ -542,6 +618,10 @@ function resetEnergy(){
   $('lightKwh').value = '';
   $('midKwh').value = '';
   $('peakKwh').value = '';
+  $('touAutoMode').value = 'auto24';
+  $('lightHours').value = '10';
+  $('midHours').value = '8';
+  $('peakHours').value = '6';
   updateTariffInputs();
   $('energyResult').classList.add('hidden');
 }
