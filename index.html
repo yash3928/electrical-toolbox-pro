@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 2.3</p>
+        <p class="eyebrow">KEC Edition · Ver 2.5</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">전기 실무 자재 추천기</p>
       </div>
@@ -20,6 +20,7 @@
       <button class="tab active" data-tab="motor">모터 자재 선정</button>
       <button class="tab" data-tab="conduit">전선관 부속 선정</button>
       <button class="tab" data-tab="cable">케이블 자재 선정</button>
+      <button class="tab" data-tab="terminalBlock">단자대·터미널 선정</button>
       <button class="tab" data-tab="energy">전력·요금·절감 계산</button>
     </nav>
 
@@ -113,7 +114,7 @@
     <section id="cable" class="panel">
       <div class="card">
         <h2>케이블 자재 선정</h2>
-        <p class="help">케이블 종류와 SQ를 선택하면 터미널·수축튜브·절연테이프·케이블타이 등 기본 자재를 표시합니다.</p>
+        <p class="help">케이블 SQ를 기준으로 현장에서 구매하기 쉬운 터미널 표기(SQ-mm)와 제품 표기(R형/Y형)를 함께 표시합니다.</p>
 
         <div class="grid">
           <label>케이블 종류
@@ -148,6 +149,38 @@
 
 
 
+    <section id="terminalBlock" class="panel">
+      <div class="card">
+        <h2>단자대·터미널 선정</h2>
+        <p class="help">단자대 정격과 극수, 사용할 케이블 SQ를 선택하면 단자대 규격과 터미널 구매 표기(SQ-mm)를 추천합니다.</p>
+
+        <div class="grid">
+          <label>단자대 정격
+            <select id="terminalBlockAmp"></select>
+          </label>
+
+          <label>극수
+            <select id="terminalBlockPole">
+              <option value="2">2P</option>
+              <option value="3">3P</option>
+              <option value="4" selected>4P</option>
+            </select>
+          </label>
+
+          <label>사용 케이블 굵기
+            <select id="terminalBlockSq"></select>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="terminalBlockBtn" class="primary">단자대/터미널 추천</button>
+        </div>
+      </div>
+
+      <div id="terminalBlockResult" class="result hidden"></div>
+    </section>
+
+
     <section id="energy" class="panel">
       <div class="card">
         <h2>전력량 · 전기요금 · 절감 계산</h2>
@@ -168,8 +201,8 @@
 
           <label>계절
             <select id="tariffSeason">
-              <option value="summer">여름철(7~8월)</option>
-              <option value="springAutumn">봄·가을철(3~6월, 9~10월)</option>
+              <option value="summer">여름철(6~8월)</option>
+              <option value="springAutumn">봄·가을철(3~5월, 9~10월)</option>
               <option value="winter">겨울철(11~2월)</option>
             </select>
           </label>
@@ -199,6 +232,14 @@
 
           <label>기본요금 단가(원/kW) <span class="small">자동입력/수정가능</span>
             <input id="basicRate" type="number" step="1" min="0" placeholder="계약종별 선택 시 자동" />
+          </label>
+
+          <label>기후환경요금 단가(원/kWh) <span class="small">고지서 기준 입력</span>
+            <input id="climateRate" type="number" step="0.1" min="0" value="0" />
+          </label>
+
+          <label>연료비조정단가(원/kWh) <span class="small">±5원/kWh 범위</span>
+            <input id="fuelRate" type="number" step="0.1" value="0" />
           </label>
 
           <label>계약전력(kW) <span class="small">요금 계산 시 선택</span>
@@ -240,7 +281,7 @@
     </section>
 
     <footer class="notice">
-      <strong>주의</strong> 본 프로그램은 KEC 원칙 기반의 실무 보조도구입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
+      <strong>주의</strong> 본 프로그램은 KEC 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
     </footer>
   </main>
 

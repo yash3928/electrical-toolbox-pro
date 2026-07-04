@@ -6,6 +6,7 @@ function init(){
   initConduitSelect();
   initCableSelect();
   initTariffSelect();
+  initTerminalBlockSelect();
   $('inputMode').addEventListener('change', updateInputMode);
   $('recommendBtn').addEventListener('click', recommendMotor);
   $('resetBtn').addEventListener('click', resetMotor);
@@ -13,6 +14,8 @@ function init(){
   $('conduitBtn').addEventListener('click', recommendConduit);
   $('cableType').addEventListener('change', initCableSelect);
   $('cableBtn').addEventListener('click', recommendCable);
+  $('terminalBlockAmp').addEventListener('change', syncTerminalBlockDefaultSq);
+  $('terminalBlockBtn').addEventListener('click', recommendTerminalBlock);
   $('energyMode').addEventListener('change', updateTariffInputs);
   $('tariffType').addEventListener('change', updateTariffInputs);
   $('tariffSeason').addEventListener('change', updateTariffInputs);
@@ -59,6 +62,27 @@ function initConduitSelect(){
 function initCableSelect(){
   $('cableSq').innerHTML = CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join('');
   $('cableSq').value = '16';
+}
+
+function initTerminalBlockSelect(){
+  $('terminalBlockAmp').innerHTML = TERMINAL_BLOCK_DB.map(t=>`<option value="${t.amp}">${t.amp}A 단자대</option>`).join('');
+  $('terminalBlockSq').innerHTML = CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join('');
+  $('terminalBlockAmp').value = '30';
+  syncTerminalBlockDefaultSq();
+}
+
+function syncTerminalBlockDefaultSq(){
+  const amp = parseInt($('terminalBlockAmp').value, 10);
+  const block = TERMINAL_BLOCK_DB.find(t=>t.amp === amp);
+  if(block) $('terminalBlockSq').value = String(block.defaultSq);
+}
+
+function formatSqMm(sq, holes){
+  return holes.map(h=>`${sq}SQ-${h}mm`).join(', ');
+}
+
+function productList(prefixItems){
+  return prefixItems && prefixItems.length ? prefixItems.join(', ') : '해당 없음/제조사 확인';
 }
 
 
@@ -260,44 +284,77 @@ function recommendConduit(){
 function recommendCable(){
   const typeKey = $('cableType').value;
   const sq = parseFloat($('cableSq').value);
-  const use = $('cableUse').value;
+  const useLabel = $('cableUse').selectedOptions[0].textContent;
   const typeInfo = CABLE_TYPE_INFO[typeKey];
   const data = CABLE_ACCESSORY_DB.find(c=>c.sq === sq);
-  const tools = COMMON_CABLE_TOOLS[use] || [];
-  const useLabel = $('cableUse').selectedOptions[0].textContent;
   const cableName = `${typeInfo.label} × ${sq}SQ`;
+  const ringText = formatSqMm(sq, data.ring);
+  const forkText = data.fork.length ? formatSqMm(sq, data.fork) : '대용량은 R형 사용 권장 / 제조사 확인';
   const copyText = [
-    `■ 케이블 자재 추천`,
+    `■ 케이블 터미널 추천`,
     `케이블: ${cableName}`,
-    `용도: ${useLabel}`,
-    `압착터미널: ${data.terminal}`,
-    `Y터미널 참고: ${data.yTerminal}`,
-    `권장 볼트: ${data.lugBolt}`,
-    `수축튜브: ${data.heatShrink}`,
-    `케이블타이: ${data.tie}`,
-    `탈피 길이 참고: ${data.strip}`,
-    `기본 소모품: ${tools.join(', ')}`,
-    `비고: ${typeInfo.note}`
+    `접속 목적: ${useLabel}`,
+    `R형 원형터미널: ${ringText}`,
+    `제품 표기: ${productList(data.productRing)}`,
+    `Y형 터미널: ${forkText}`,
+    `제품 표기: ${productList(data.productFork)}`,
+    `비고: 실제 단자 구멍 지름(mm)과 단자 폭은 접속기기 제조사 치수 확인`
   ].join('\n');
 
   $('cableResult').innerHTML = `
-    <h3>케이블 자재 추천</h3>
+    <h3>케이블 터미널 추천</h3>
     <div class="resultGrid">
       <div class="item"><div class="k">케이블</div><div class="v">${cableName}</div></div>
       <div class="item"><div class="k">접속 목적</div><div class="v">${useLabel}</div></div>
-      <div class="item"><div class="k">압착터미널</div><div class="v">${data.terminal}</div></div>
-      <div class="item"><div class="k">Y터미널 참고</div><div class="v">${data.yTerminal}</div></div>
-      <div class="item"><div class="k">권장 볼트</div><div class="v">${data.lugBolt}</div></div>
-      <div class="item"><div class="k">수축튜브</div><div class="v">${data.heatShrink}</div></div>
-      <div class="item"><div class="k">케이블타이</div><div class="v">${data.tie}</div></div>
-      <div class="item"><div class="k">탈피 길이 참고</div><div class="v">${data.strip}</div></div>
-      <div class="item full"><div class="k">기본 소모품</div><div class="v">${tools.map(t=>'□ '+t).join('<br>')}</div></div>
+      <div class="item full"><div class="k">R형 원형터미널 구매 표기</div><div class="v">${ringText}</div></div>
+      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${productList(data.productRing)}</div></div>
+      <div class="item full"><div class="k">Y형 터미널 구매 표기</div><div class="v">${forkText}</div></div>
+      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${productList(data.productFork)}</div></div>
       <div class="item full"><div class="k">비고</div><div class="v">${typeInfo.note}</div></div>
     </div>
-    <div class="basis">※ 터미널 규격은 케이블 SQ 기준의 실무 참고값입니다. 실제 차단기·단자대·모터 단자함의 볼트 규격, 단자 폭, 제조사 압착단자 치수를 최종 확인하세요.</div>
+    <div class="basis">※ 구매 표기는 “전선 굵기SQ-구멍 지름mm” 기준입니다. 예: 2.5SQ-4mm는 제품 표기상 R2-4와 같은 의미로 쓰입니다. 실제 적용은 차단기·단자대·모터 단자함의 나사 지름과 단자 폭을 최종 확인하세요.</div>
     <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
   `;
   $('cableResult').classList.remove('hidden');
+  bindCopyButtons();
+}
+
+function recommendTerminalBlock(){
+  const amp = parseInt($('terminalBlockAmp').value, 10);
+  const poles = $('terminalBlockPole').value;
+  const sq = parseFloat($('terminalBlockSq').value);
+  const block = TERMINAL_BLOCK_DB.find(t=>t.amp === amp);
+  const data = CABLE_ACCESSORY_DB.find(c=>c.sq === sq);
+  const inRange = sq >= block.minSq && sq <= block.maxSq;
+  const usableRingHoles = data.ring.filter(h=>block.holes.includes(h));
+  const holes = usableRingHoles.length ? usableRingHoles : block.holes;
+  const terminalText = formatSqMm(sq, holes);
+  const products = data.productRing.filter(p=>holes.some(h=>p.endsWith('-'+h))).join(', ') || productList(data.productRing);
+  const copyText = [
+    `■ 단자대/터미널 추천`,
+    `단자대: ${amp}A ${poles}P`,
+    `적용 전선 범위: ${block.cableRange}`,
+    `선택 케이블: ${sq}SQ`,
+    `추천 R형 터미널: ${terminalText}`,
+    `제품 표기 참고: ${products}`,
+    `검토: ${inRange ? '선택 케이블이 단자대 적용 범위 안에 있음' : '선택 케이블이 단자대 권장 범위를 벗어남 - 단자대 정격 재검토'}`
+  ].join('\n');
+
+  $('terminalBlockResult').innerHTML = `
+    <h3>단자대·터미널 추천</h3>
+    <div class="resultGrid">
+      <div class="item"><div class="k">단자대</div><div class="v">${amp}A ${poles}P</div></div>
+      <div class="item"><div class="k">적용 전선 범위</div><div class="v">${block.cableRange}</div></div>
+      <div class="item"><div class="k">선택 케이블</div><div class="v">${sq}SQ</div></div>
+      <div class="item"><div class="k">범위 검토</div><div class="v"><span class="badge ${inRange ? 'good' : 'warn'}">${inRange ? '권장 범위' : '재검토 필요'}</span></div></div>
+      <div class="item full"><div class="k">추천 R형 터미널 구매 표기</div><div class="v">${terminalText}</div></div>
+      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${products}</div></div>
+      <div class="item full"><div class="k">비고</div><div class="v">${block.note}</div></div>
+    </div>
+    <div class="basis">※ 단자대 정격(A)별 적용 전선 범위는 실무 참고값입니다. 제조사별 단자 나사 지름, 단자 폭, 압착단자 외형 치수가 다를 수 있으므로 구매 전 단자대 도면을 확인하세요.</div>
+    <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
+  `;
+  $('terminalBlockResult').classList.remove('hidden');
   bindCopyButtons();
 }
 
@@ -371,6 +428,8 @@ function calculateEnergy(){
   const lightKwh = getVal('lightKwh');
   const midKwh = getVal('midKwh');
   const peakKwh = getVal('peakKwh');
+  const climateRate = getVal('climateRate');
+  const fuelRate = getVal('fuelRate');
   const isTouBill = mode === 'bill' && tariff.type === 'tou' && loadMode === 'tou';
 
   if(mode !== 'saving' && !isTouBill && kw <= 0){
@@ -395,10 +454,12 @@ function calculateEnergy(){
   }
 
   const basicCharge = contractKw * basicRate;
-  const subtotal = basicCharge + monthlyEnergyCharge;
-  const vat = subtotal * 0.1;
-  const fund = monthlyEnergyCharge * 0.037; // 전력산업기반기금 일반 산식 참고용
-  const totalBill = subtotal + vat + fund;
+  const climateCharge = monthlyKwh * climateRate;
+  const fuelCharge = monthlyKwh * fuelRate;
+  const electricityCharge = basicCharge + monthlyEnergyCharge + climateCharge + fuelCharge;
+  const vat = Math.round(electricityCharge * 0.1);
+  const fund = Math.floor((electricityCharge * 0.027) / 10) * 10; // '25.7.1부 2.7%, 10원 미만 절사
+  const totalBill = electricityCharge + vat + fund;
 
   let title = '전력량 계산 결과';
   let mainRows = '';
@@ -422,11 +483,14 @@ function calculateEnergy(){
       <div class="item"><div class="k">월 사용량</div><div class="v">${num(monthlyKwh)} kWh</div></div>
       <div class="item"><div class="k">기본요금</div><div class="v">${won(basicCharge)}</div></div>
       <div class="item"><div class="k">전력량요금</div><div class="v">${won(monthlyEnergyCharge)}</div></div>
+      <div class="item"><div class="k">기후환경요금</div><div class="v">${won(climateCharge)}</div></div>
+      <div class="item"><div class="k">연료비조정요금</div><div class="v">${won(fuelCharge)}</div></div>
+      <div class="item"><div class="k">전기요금 소계</div><div class="v">${won(electricityCharge)}</div></div>
       <div class="item"><div class="k">부가세 10%</div><div class="v">${won(vat)}</div></div>
-      <div class="item"><div class="k">전력산업기반기금 참고</div><div class="v">${won(fund)}</div></div>
-      <div class="item"><div class="k">월 예상 합계</div><div class="v">${won(totalBill)}</div></div>`;
-    basis = '간편 공식: 기본요금=계약전력×기본요금단가, 전력량요금=월사용량×전력량단가 또는 시간대별 사용량×시간대별 단가, 합계≈기본요금+전력량요금+부가세+전력산업기반기금. 실제 한전 청구액은 역률요금, 기후환경요금, 연료비조정액, 감면/가산, 최대수요전력 등에 따라 달라집니다.';
-    copy = [`■ 한전 전기요금 간편 계산`, `계약종별: ${tariff.label}`, `계절: ${getSeasonLabel(season)}`, `월 사용량: ${num(monthlyKwh)}kWh`, `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `월 예상 합계: ${won(totalBill)}`, `※ 실제 청구액은 한전 계약종별/계절/시간대 기준 확인 필요`];
+      <div class="item"><div class="k">전력산업기반기금 2.7%</div><div class="v">${won(fund)}</div></div>
+      <div class="item"><div class="k">월 예상 청구금액</div><div class="v">${won(totalBill)}</div></div>`;
+    basis = '2026.6.1 시행 요금표 반영. 전기요금=기본요금+전력량요금+기후환경요금+연료비조정요금, 부가가치세=전기요금×10%, 전력산업기반기금=전기요금×2.7%(10원 미만 절사), 청구금액=전기요금+부가세+전력산업기반기금. 실제 청구액은 역률요금, 감면/가산, 최대수요전력 등에 따라 달라집니다.';
+    copy = [`■ 한전 전기요금 간편 계산`, `계약종별: ${tariff.label}`, `계절: ${getSeasonLabel(season)}`, `월 사용량: ${num(monthlyKwh)}kWh`, `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `기후환경요금: ${won(climateCharge)}`, `연료비조정요금: ${won(fuelCharge)}`, `전기요금 소계: ${won(electricityCharge)}`, `부가세: ${won(vat)}`, `전력산업기반기금: ${won(fund)}`, `월 예상 청구금액: ${won(totalBill)}`, `※ 실제 청구액은 한전 고지서 기준 확인 필요`];
   }
 
   if(mode === 'saving'){
@@ -483,6 +547,8 @@ function resetEnergy(){
   $('beforeKw').value = '';
   $('afterKw').value = '';
   $('investment').value = '';
+  if($('climateRate')) $('climateRate').value = '0';
+  if($('fuelRate')) $('fuelRate').value = '0';
   $('lightKwh').value = '';
   $('midKwh').value = '';
   $('peakKwh').value = '';

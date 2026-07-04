@@ -46,19 +46,19 @@ const LOCATION_RULES = {
   outdoorWet:{label:'옥외/습기 우려', conduitType:'GW'}
 };
 
-// 케이블 굵기별 접속 자재 간편 DB. 터미널은 제조사 단자대 볼트 규격에 따라 최종 확인.
+// 케이블 굵기별 터미널 간편 DB. 표기는 실무 구매 편의를 위해 SQ-mm를 우선 표시하고, 제품 표기(R/Y)를 함께 제공합니다.
 const CABLE_ACCESSORY_DB = [
-  {sq:1.5, terminal:'R1.5-4', yTerminal:'Y1.5-4', heatShrink:'φ4~6mm', tie:'소형 케이블타이 100~150mm', lugBolt:'M4', strip:'약 8~10mm'},
-  {sq:2.5, terminal:'R2-4', yTerminal:'Y2-4', heatShrink:'φ5~8mm', tie:'소형 케이블타이 150mm', lugBolt:'M4', strip:'약 9~11mm'},
-  {sq:4, terminal:'R3.5-4', yTerminal:'Y3.5-4', heatShrink:'φ6~10mm', tie:'소형/중형 케이블타이 150~200mm', lugBolt:'M4', strip:'약 10~12mm'},
-  {sq:6, terminal:'R5.5-5', yTerminal:'Y5.5-5', heatShrink:'φ8~12mm', tie:'중형 케이블타이 200mm', lugBolt:'M5', strip:'약 11~13mm'},
-  {sq:10, terminal:'R8-5', yTerminal:'Y8-5', heatShrink:'φ10~16mm', tie:'중형 케이블타이 200~250mm', lugBolt:'M5', strip:'약 12~15mm'},
-  {sq:16, terminal:'R14-6', yTerminal:'Y14-6', heatShrink:'φ14~20mm', tie:'중형/대형 케이블타이 250mm', lugBolt:'M6', strip:'약 15~18mm'},
-  {sq:25, terminal:'R22-8', yTerminal:'Y22-8', heatShrink:'φ18~25mm', tie:'대형 케이블타이 300mm', lugBolt:'M8', strip:'약 18~22mm'},
-  {sq:35, terminal:'R38-8', yTerminal:'Y38-8', heatShrink:'φ22~30mm', tie:'대형 케이블타이 300~370mm', lugBolt:'M8', strip:'약 20~25mm'},
-  {sq:50, terminal:'R60-10', yTerminal:'-', heatShrink:'φ30~40mm', tie:'대형 케이블타이 370mm', lugBolt:'M10', strip:'약 24~30mm'},
-  {sq:70, terminal:'R70-10', yTerminal:'-', heatShrink:'φ35~50mm', tie:'대형 케이블타이 370~450mm', lugBolt:'M10', strip:'약 28~35mm'},
-  {sq:95, terminal:'R100-12', yTerminal:'-', heatShrink:'φ45~60mm', tie:'대형 케이블타이 450mm 이상', lugBolt:'M12', strip:'약 32~40mm'}
+  {sq:1.5, ring:[3.5,4], fork:[3.5,4], productRing:['R1.5-3.5','R1.5-4'], productFork:['Y1.5-3.5','Y1.5-4']},
+  {sq:2.5, ring:[4,5], fork:[4,5], productRing:['R2-4','R2-5'], productFork:['Y2-4','Y2-5']},
+  {sq:4, ring:[4,5,6], fork:[4,5], productRing:['R3.5-4','R3.5-5','R3.5-6'], productFork:['Y3.5-4','Y3.5-5']},
+  {sq:6, ring:[5,6], fork:[5,6], productRing:['R5.5-5','R5.5-6'], productFork:['Y5.5-5','Y5.5-6']},
+  {sq:10, ring:[5,6,8], fork:[5,6], productRing:['R8-5','R8-6','R8-8'], productFork:['Y8-5','Y8-6']},
+  {sq:16, ring:[6,8,10], fork:[6,8], productRing:['R14-6','R14-8','R14-10'], productFork:['Y14-6','Y14-8']},
+  {sq:25, ring:[8,10], fork:[8], productRing:['R22-8','R22-10'], productFork:['Y22-8']},
+  {sq:35, ring:[8,10], fork:[8], productRing:['R38-8','R38-10'], productFork:['Y38-8']},
+  {sq:50, ring:[10,12], fork:[], productRing:['R60-10','R60-12'], productFork:[]},
+  {sq:70, ring:[10,12], fork:[], productRing:['R70-10','R70-12'], productFork:[]},
+  {sq:95, ring:[12,14], fork:[], productRing:['R100-12','R100-14'], productFork:[]}
 ];
 
 const CABLE_TYPE_INFO = {
@@ -68,93 +68,71 @@ const CABLE_TYPE_INFO = {
   HIV_SINGLE:{label:'HIV/IV 단심', cores:'단심', note:'제어반 내부 배선 또는 전선관 내 절연전선용'}
 };
 
-const COMMON_CABLE_TOOLS = {
-  panel:['절연캡 또는 수축튜브', '상표시 마킹튜브/라벨', '케이블타이', '절연테이프', '압착공구'],
-  motor:['절연캡 또는 수축튜브', '상표시 마킹튜브/라벨', '방수테이프(습기 우려 시)', '케이블타이', '압착공구'],
-  junction:['직선슬리브 또는 압착슬리브', '수축튜브', '절연테이프', '방수테이프(습기 우려 시)', '압착공구']
-};
+const TERMINAL_BLOCK_DB = [
+  {amp:15, cableRange:'1.25~2.5SQ', minSq:1.5, maxSq:2.5, defaultSq:2.5, holes:[3.5,4], note:'소형 제어/전원 단자대'},
+  {amp:20, cableRange:'1.5~4SQ', minSq:1.5, maxSq:4, defaultSq:2.5, holes:[4,5], note:'소형 동력·제어 전원 단자대'},
+  {amp:30, cableRange:'2.5~6SQ', minSq:2.5, maxSq:6, defaultSq:4, holes:[4,5,6], note:'30A 4P 단자대는 2.5~6SQ급 접속에 주로 사용'},
+  {amp:60, cableRange:'6~16SQ', minSq:6, maxSq:16, defaultSq:10, holes:[5,6,8], note:'중소형 동력 회로 분기용'},
+  {amp:100, cableRange:'16~25SQ', minSq:16, maxSq:25, defaultSq:16, holes:[6,8,10], note:'동력 회로 및 분전반 내부 배선용'},
+  {amp:150, cableRange:'25~35SQ', minSq:25, maxSq:35, defaultSq:35, holes:[8,10], note:'대용량 동력 회로용'},
+  {amp:200, cableRange:'35~60SQ', minSq:35, maxSq:60, defaultSq:50, holes:[8,10,12], note:'200A 4P 단자대는 35~60SQ급 접속에 주로 사용'},
+  {amp:300, cableRange:'60~95SQ', minSq:60, maxSq:95, defaultSq:70, holes:[10,12,14], note:'대용량 간선 접속용'}
+];
 
 // KEPCO 전기요금 간편 DB (공식 요금표 기준, 일부 주요 계약종별만 탑재)
 // 단위: 기본요금 원/kW, 전력량요금 원/kWh
 // season keys: summer, springAutumn, winter. load keys: light, mid, peak.
+// KEPCO 전기요금 DB
+// 기준: 2026년 6월 1일 시행 전기요금표(종합) PDF 반영
+// 단위: 기본요금 원/kW, 전력량요금 원/kWh
+// season keys: summer(6~8월), springAutumn(3~5월, 9~10월), winter(11~2월)
+// load keys: light(경부하), mid(중간부하), peak(최대부하)
+const TARIFF_VERSION = '2026-06-01';
 const TARIFFS = [
-  {
-    id:'general_a1_low', label:'일반용(갑)Ⅰ 저압전력', type:'flat', basic:5990,
-    energy:{summer:102.9, springAutumn:64.1, winter:88.8},
-    note:'계약전력 300kW 미만 일반용, 저압 단일요금'
-  },
-  {
-    id:'general_a1_highA_1', label:'일반용(갑)Ⅰ 고압A 선택Ⅰ', type:'flat', basic:6990,
-    energy:{summer:113.4, springAutumn:70.8, winter:100.0},
-    note:'일반용(갑)Ⅰ 고압A 선택Ⅰ 단일요금'
-  },
-  {
-    id:'general_b_highA_1', label:'일반용(을) 고압A 선택Ⅰ', type:'tou', basic:6990,
-    energy:{
-      summer:{light:59.1, mid:112.2, peak:192.5},
-      springAutumn:{light:59.1, mid:82.4, peak:112.4},
-      winter:{light:65.3, mid:110.4, peak:165.6}
-    },
-    note:'일반용(을) 고압A 선택Ⅰ 시간대별요금'
-  },
-  {
-    id:'general_b_highA_2', label:'일반용(을) 고압A 선택Ⅱ', type:'tou', basic:8020,
-    energy:{
-      summer:{light:53.8, mid:106.9, peak:187.2},
-      springAutumn:{light:53.8, mid:77.1, peak:107.1},
-      winter:{light:60.0, mid:105.1, peak:160.3}
-    },
-    note:'일반용(을) 고압A 선택Ⅱ 시간대별요금'
-  },
-  {
-    id:'industrial_a1_low', label:'산업용(갑)Ⅰ 저압전력', type:'flat', basic:5270,
-    energy:{summer:76.8, springAutumn:57.9, winter:74.3},
-    note:'산업용(갑)Ⅰ 저압 단일요금'
-  },
-  {
-    id:'industrial_a1_highA_1', label:'산업용(갑)Ⅰ 고압A 선택Ⅰ', type:'flat', basic:6200,
-    energy:{summer:84.5, springAutumn:63.9, winter:83.8},
-    note:'산업용(갑)Ⅰ 고압A 선택Ⅰ 단일요금'
-  },
-  {
-    id:'industrial_a2_highA_1', label:'산업용(갑)Ⅱ 고압A 선택Ⅰ', type:'tou', basic:6990,
-    energy:{
-      summer:{light:58.4, mid:83.9, peak:112.4},
-      springAutumn:{light:58.4, mid:63.1, peak:78.9},
-      winter:{light:65.3, mid:82.4, peak:105.7}
-    },
-    note:'산업용(갑)Ⅱ 고압A 선택Ⅰ 시간대별요금'
-  },
-  {
-    id:'industrial_a2_highA_2', label:'산업용(갑)Ⅱ 고압A 선택Ⅱ', type:'tou', basic:7140,
-    energy:{
-      summer:{light:53.7, mid:79.2, peak:107.7},
-      springAutumn:{light:53.7, mid:58.4, peak:74.2},
-      winter:{light:60.6, mid:77.7, peak:101.0}
-    },
-    note:'산업용(갑)Ⅱ 고압A 선택Ⅱ 시간대별요금'
-  },
-  {
-    id:'industrial_b_highA_1', label:'산업용(을) 고압A 선택Ⅰ', type:'tou', basic:6200,
-    energy:{
-      summer:{light:58.4, mid:83.9, peak:112.4},
-      springAutumn:{light:58.4, mid:63.1, peak:78.9},
-      winter:{light:65.3, mid:82.4, peak:105.7}
-    },
-    note:'산업용(을) 고압A 선택Ⅰ 시간대별요금'
-  },
-  {
-    id:'industrial_b_highA_2', label:'산업용(을) 고압A 선택Ⅱ', type:'tou', basic:8050,
-    energy:{
-      summer:{light:53.8, mid:106.9, peak:187.2},
-      springAutumn:{light:53.8, mid:77.1, peak:107.1},
-      winter:{light:60.0, mid:105.1, peak:160.3}
-    },
-    note:'산업용(을) 고압A 선택Ⅱ 시간대별요금'
-  },
-  {
-    id:'manual', label:'직접입력', type:'flat', basic:0,
-    energy:{summer:0, springAutumn:0, winter:0},
-    note:'직접 단가를 입력합니다.'
-  }
+  // 일반용전력(갑)Ⅰ - 계약전력 300kW 미만, 단일요금
+  {id:'general_a1_low', label:'일반용(갑)Ⅰ 저압', type:'flat', basic:6160, energy:{summer:132.4, springAutumn:91.9, winter:119.0}, note:'계약전력 300kW 미만'},
+  {id:'general_a1_highA_1', label:'일반용(갑)Ⅰ 고압A 선택Ⅰ', type:'flat', basic:7170, energy:{summer:142.6, springAutumn:98.6, winter:130.3}, note:'계약전력 300kW 미만'},
+  {id:'general_a1_highA_2', label:'일반용(갑)Ⅰ 고압A 선택Ⅱ', type:'flat', basic:8230, energy:{summer:138.6, springAutumn:94.3, winter:125.0}, note:'계약전력 300kW 미만'},
+  {id:'general_a1_highB_1', label:'일반용(갑)Ⅰ 고압B 선택Ⅰ', type:'flat', basic:7170, energy:{summer:140.5, springAutumn:97.5, winter:127.3}, note:'계약전력 300kW 미만'},
+  {id:'general_a1_highB_2', label:'일반용(갑)Ⅰ 고압B 선택Ⅱ', type:'flat', basic:8230, energy:{summer:135.2, springAutumn:92.2, winter:122.0}, note:'계약전력 300kW 미만'},
+
+  // 일반용전력(갑)Ⅱ - 계약전력 300kW 미만 시간대별 구분계량기 설치고객
+  {id:'general_a2_highA_1', label:'일반용(갑)Ⅱ 고압A 선택Ⅰ', type:'tou', basic:7170, energy:{summer:{light:89.4, mid:140.6, peak:163.1}, springAutumn:{light:89.4, mid:96.8, peak:108.1}, winter:{light:98.1, mid:128.5, peak:143.3}}, note:'계약전력 300kW 미만 시간대별'},
+  {id:'general_a2_highA_2', label:'일반용(갑)Ⅱ 고압A 선택Ⅱ', type:'tou', basic:8230, energy:{summer:{light:84.1, mid:135.3, peak:157.8}, springAutumn:{light:84.1, mid:91.5, peak:102.8}, winter:{light:92.8, mid:123.2, peak:138.0}}, note:'계약전력 300kW 미만 시간대별'},
+  {id:'general_a2_highB_1', label:'일반용(갑)Ⅱ 고압B 선택Ⅰ', type:'tou', basic:7170, energy:{summer:{light:88.8, mid:137.4, peak:153.8}, springAutumn:{light:88.8, mid:94.7, peak:100.1}, winter:{light:97.8, mid:125.1, peak:139.3}}, note:'계약전력 300kW 미만 시간대별'},
+  {id:'general_a2_highB_2', label:'일반용(갑)Ⅱ 고압B 선택Ⅱ', type:'tou', basic:8230, energy:{summer:{light:83.5, mid:132.1, peak:148.5}, springAutumn:{light:83.5, mid:89.4, peak:94.8}, winter:{light:92.5, mid:119.8, peak:134.0}}, note:'계약전력 300kW 미만 시간대별'},
+
+  // 일반용전력(을) - 계약전력 300kW 이상
+  {id:'general_b_highA_1', label:'일반용(을) 고압A 선택Ⅰ', type:'tou', basic:7220, energy:{summer:{light:92.8, mid:145.7, peak:227.8}, springAutumn:{light:92.8, mid:115.3, peak:146.0}, winter:{light:99.8, mid:145.9, peak:203.4}}, note:'계약전력 300kW 이상'},
+  {id:'general_b_highA_2', label:'일반용(을) 고압A 선택Ⅱ', type:'tou', basic:8320, energy:{summer:{light:87.3, mid:140.2, peak:222.3}, springAutumn:{light:87.3, mid:109.8, peak:140.5}, winter:{light:94.3, mid:140.4, peak:197.9}}, note:'계약전력 300kW 이상'},
+  {id:'general_b_highA_3', label:'일반용(을) 고압A 선택Ⅲ', type:'tou', basic:9810, energy:{summer:{light:86.4, mid:139.6, peak:209.9}, springAutumn:{light:86.4, mid:108.5, peak:132.2}, winter:{light:93.7, mid:139.8, peak:186.7}}, note:'계약전력 300kW 이상'},
+  {id:'general_b_highB_1', label:'일반용(을) 고압B 선택Ⅰ', type:'tou', basic:6630, energy:{summer:{light:95.9, mid:148.2, peak:229.4}, springAutumn:{light:95.9, mid:118.2, peak:148.5}, winter:{light:102.9, mid:148.2, peak:204.4}}, note:'계약전력 300kW 이상'},
+  {id:'general_b_highB_2', label:'일반용(을) 고압B 선택Ⅱ', type:'tou', basic:7380, energy:{summer:{light:92.1, mid:144.4, peak:225.6}, springAutumn:{light:92.1, mid:114.4, peak:144.7}, winter:{light:99.1, mid:144.4, peak:200.6}}, note:'계약전력 300kW 이상'},
+  {id:'general_b_highB_3', label:'일반용(을) 고압B 선택Ⅲ', type:'tou', basic:8190, energy:{summer:{light:90.4, mid:142.7, peak:224.0}, springAutumn:{light:90.4, mid:112.8, peak:143.1}, winter:{light:97.5, mid:142.7, peak:198.9}}, note:'계약전력 300kW 이상'},
+
+  // 산업용전력(갑)Ⅰ - 계약전력 300kW 미만, 단일요금
+  {id:'industrial_a1_low', label:'산업용(갑)Ⅰ 저압', type:'flat', basic:5550, energy:{summer:116.2, springAutumn:94.4, winter:114.5}, note:'계약전력 300kW 미만'},
+  {id:'industrial_a1_highA_1', label:'산업용(갑)Ⅰ 고압A 선택Ⅰ', type:'flat', basic:6490, energy:{summer:124.8, springAutumn:101.1, winter:124.7}, note:'계약전력 300kW 미만'},
+  {id:'industrial_a1_highA_2', label:'산업용(갑)Ⅰ 고압A 선택Ⅱ', type:'flat', basic:7470, energy:{summer:120.0, springAutumn:96.5, winter:118.2}, note:'계약전력 300kW 미만'},
+  {id:'industrial_a1_highB_1', label:'산업용(갑)Ⅰ 고압B 선택Ⅰ', type:'flat', basic:6000, energy:{summer:123.6, springAutumn:100.0, winter:123.2}, note:'계약전력 300kW 미만'},
+  {id:'industrial_a1_highB_2', label:'산업용(갑)Ⅰ 고압B 선택Ⅱ', type:'flat', basic:6900, energy:{summer:118.9, springAutumn:95.4, winter:117.1}, note:'계약전력 300kW 미만'},
+
+  // 산업용전력(갑)Ⅱ - 계약전력 300kW 미만 시간대별 구분계량기 설치고객
+  {id:'industrial_a2_highA_1', label:'산업용(갑)Ⅱ 고압A 선택Ⅰ', type:'tou', basic:6490, energy:{summer:{light:95.7, mid:121.5, peak:155.0}, springAutumn:{light:95.7, mid:100.5, peak:119.7}, winter:{light:103.1, mid:120.0, peak:149.4}}, note:'계약전력 300kW 미만 시간대별'},
+  {id:'industrial_a2_highA_2', label:'산업용(갑)Ⅱ 고압A 선택Ⅱ', type:'tou', basic:7470, energy:{summer:{light:90.8, mid:116.6, peak:150.1}, springAutumn:{light:90.8, mid:95.6, peak:114.8}, winter:{light:98.2, mid:115.1, peak:144.5}}, note:'계약전력 300kW 미만 시간대별'},
+  {id:'industrial_a2_highB_1', label:'산업용(갑)Ⅱ 고압B 선택Ⅰ', type:'tou', basic:6000, energy:{summer:{light:92.5, mid:120.1, peak:153.9}, springAutumn:{light:92.5, mid:99.1, peak:117.9}, winter:{light:99.7, mid:117.7, peak:146.4}}, note:'계약전력 300kW 미만 시간대별'},
+  {id:'industrial_a2_highB_2', label:'산업용(갑)Ⅱ 고압B 선택Ⅱ', type:'tou', basic:6900, energy:{summer:{light:88.0, mid:115.6, peak:149.4}, springAutumn:{light:88.0, mid:94.6, peak:113.4}, winter:{light:95.2, mid:113.2, peak:141.9}}, note:'계약전력 300kW 미만 시간대별'},
+
+  // 산업용전력(을) - 계약전력 300kW 이상
+  {id:'industrial_b_highA_1', label:'산업용(을) 고압A 선택Ⅰ', type:'tou', basic:7220, energy:{summer:{light:121.5, mid:169.3, peak:234.5}, springAutumn:{light:121.5, mid:138.9, peak:156.4}, winter:{light:128.5, mid:169.5, peak:210.1}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highA_2', label:'산업용(을) 고압A 선택Ⅱ', type:'tou', basic:8320, energy:{summer:{light:116.0, mid:163.8, peak:229.0}, springAutumn:{light:116.0, mid:133.4, peak:150.9}, winter:{light:123.0, mid:164.0, peak:204.6}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highA_3', label:'산업용(을) 고압A 선택Ⅲ', type:'tou', basic:9810, energy:{summer:{light:115.1, mid:163.2, peak:216.6}, springAutumn:{light:115.1, mid:132.1, peak:142.6}, winter:{light:122.4, mid:163.4, peak:193.4}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highB_1', label:'산업용(을) 고압B 선택Ⅰ', type:'tou', basic:6630, energy:{summer:{light:131.4, mid:178.6, peak:242.9}, springAutumn:{light:131.4, mid:148.6, peak:165.7}, winter:{light:138.4, mid:178.6, peak:217.9}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highB_2', label:'산업용(을) 고압B 선택Ⅱ', type:'tou', basic:7380, energy:{summer:{light:127.6, mid:174.8, peak:239.1}, springAutumn:{light:127.6, mid:144.8, peak:161.9}, winter:{light:134.6, mid:174.8, peak:214.1}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highB_3', label:'산업용(을) 고압B 선택Ⅲ', type:'tou', basic:8190, energy:{summer:{light:125.9, mid:173.1, peak:237.5}, springAutumn:{light:125.9, mid:143.2, peak:160.3}, winter:{light:133.0, mid:173.1, peak:212.4}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highC_1', label:'산업용(을) 고압C 선택Ⅰ', type:'tou', basic:6590, energy:{summer:{light:130.9, mid:178.7, peak:242.7}, springAutumn:{light:130.9, mid:148.7, peak:165.9}, winter:{light:137.8, mid:178.3, peak:218.0}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highC_2', label:'산업용(을) 고압C 선택Ⅱ', type:'tou', basic:7520, energy:{summer:{light:126.2, mid:174.0, peak:238.0}, springAutumn:{light:126.2, mid:144.0, peak:161.2}, winter:{light:133.1, mid:173.6, peak:213.3}}, note:'계약전력 300kW 이상'},
+  {id:'industrial_b_highC_3', label:'산업용(을) 고압C 선택Ⅲ', type:'tou', basic:8090, energy:{summer:{light:125.1, mid:172.9, peak:236.9}, springAutumn:{light:125.1, mid:142.9, peak:160.1}, winter:{light:132.0, mid:172.5, peak:212.2}}, note:'계약전력 300kW 이상'},
+
+  {id:'manual', label:'직접입력', type:'flat', basic:0, energy:{summer:0, springAutumn:0, winter:0}, note:'직접 단가를 입력합니다.'}
 ];
