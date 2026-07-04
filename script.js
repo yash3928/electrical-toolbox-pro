@@ -5,6 +5,7 @@ function init(){
   initMotorSelects();
   initConduitSelect();
   initCableSelect();
+  initTariffSelect();
   $('inputMode').addEventListener('change', updateInputMode);
   $('recommendBtn').addEventListener('click', recommendMotor);
   $('resetBtn').addEventListener('click', resetMotor);
@@ -12,9 +13,14 @@ function init(){
   $('conduitBtn').addEventListener('click', recommendConduit);
   $('cableType').addEventListener('change', initCableSelect);
   $('cableBtn').addEventListener('click', recommendCable);
+  $('energyMode').addEventListener('change', updateTariffInputs);
+  $('tariffType').addEventListener('change', updateTariffInputs);
+  $('tariffSeason').addEventListener('change', updateTariffInputs);
+  $('tariffLoadMode').addEventListener('change', updateTariffInputs);
   $('energyBtn').addEventListener('click', calculateEnergy);
   $('energyResetBtn').addEventListener('click', resetEnergy);
   updateInputMode();
+  updateTariffInputs();
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -53,6 +59,50 @@ function initConduitSelect(){
 function initCableSelect(){
   $('cableSq').innerHTML = CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join('');
   $('cableSq').value = '16';
+}
+
+
+function initTariffSelect(){
+  const el = $('tariffType');
+  if(!el || typeof TARIFFS === 'undefined') return;
+  el.innerHTML = TARIFFS.map(t=>`<option value="${t.id}">${t.label}</option>`).join('');
+  el.value = 'industrial_b_highA_1';
+}
+
+function getTariff(){
+  const id = $('tariffType')?.value || 'manual';
+  return (typeof TARIFFS !== 'undefined' ? TARIFFS.find(t=>t.id === id) : null) || TARIFFS[TARIFFS.length-1];
+}
+
+function getSeasonLabel(season){
+  return {summer:'여름철', springAutumn:'봄·가을철', winter:'겨울철'}[season] || season;
+}
+
+function updateTariffInputs(){
+  if(!$('tariffType')) return;
+  const tariff = getTariff();
+  const season = $('tariffSeason').value;
+  const requestedMode = $('tariffLoadMode').value;
+  const useTou = tariff.type === 'tou' && requestedMode === 'tou';
+
+  $('basicRate').value = tariff.id === 'manual' ? $('basicRate').value : tariff.basic;
+
+  if(tariff.id !== 'manual'){
+    if(tariff.type === 'flat'){
+      $('tariffLoadMode').value = 'flat';
+      $('energyRate').value = tariff.energy[season];
+    }else if(useTou){
+      $('energyRate').value = '';
+      $('energyRate').placeholder = '시간대별 사용량으로 계산';
+    }else{
+      // 시간대별 요금제를 단일 평균처럼 쓰고 싶을 때는 중간부하 단가를 기본값으로 표시
+      $('energyRate').value = tariff.energy[season].mid;
+      $('energyRate').placeholder = '중간부하 단가 자동입력';
+    }
+  }
+
+  const touVisible = tariff.type === 'tou' && $('tariffLoadMode').value === 'tou';
+  ['lightKwhWrap','midKwhWrap','peakKwhWrap'].forEach(id=>$(id)?.classList.toggle('hidden', !touVisible));
 }
 
 function getKw(){
@@ -315,16 +365,35 @@ function calculateEnergy(){
   const beforeKw = getVal('beforeKw');
   const afterKw = getVal('afterKw');
   const investment = getVal('investment');
+  const tariff = getTariff();
+  const season = $('tariffSeason').value;
+  const loadMode = $('tariffLoadMode').value;
+  const lightKwh = getVal('lightKwh');
+  const midKwh = getVal('midKwh');
+  const peakKwh = getVal('peakKwh');
+  const isTouBill = mode === 'bill' && tariff.type === 'tou' && loadMode === 'tou';
 
-  if(mode !== 'saving' && kw <= 0){
-    showEnergyError('부하용량 또는 절감전력(kW)을 입력하세요.');
+  if(mode !== 'saving' && !isTouBill && kw <= 0){
+    showEnergyError('부하용량 또는 절감전력(kW)을 입력하세요. 시간대별 요금 계산은 경·중·최대부하 사용량을 입력하세요.');
     return;
   }
 
   const dailyKwh = kw * hours;
-  const monthlyKwh = dailyKwh * days;
+  const calculatedMonthlyKwh = dailyKwh * days;
+  const touMonthlyKwh = lightKwh + midKwh + peakKwh;
+  const monthlyKwh = isTouBill ? touMonthlyKwh : calculatedMonthlyKwh;
   const yearlyKwh = monthlyKwh * 12;
-  const monthlyEnergyCharge = monthlyKwh * rate;
+
+  let monthlyEnergyCharge = monthlyKwh * rate;
+  let tariffText = `${tariff.label} · ${getSeasonLabel(season)}`;
+  if(isTouBill){
+    const r = tariff.energy[season];
+    monthlyEnergyCharge = lightKwh * r.light + midKwh * r.mid + peakKwh * r.peak;
+    tariffText += ` · 경부하 ${r.light}원/kWh, 중간부하 ${r.mid}원/kWh, 최대부하 ${r.peak}원/kWh`;
+  }else if(tariff.id !== 'manual'){
+    tariffText += ` · 적용단가 ${rate || 0}원/kWh`;
+  }
+
   const basicCharge = contractKw * basicRate;
   const subtotal = basicCharge + monthlyEnergyCharge;
   const vat = subtotal * 0.1;
@@ -349,14 +418,15 @@ function calculateEnergy(){
   if(mode === 'bill'){
     title = '한전 전기요금 간편 계산';
     mainRows = `
+      <div class="item full"><div class="k">적용 계약종별</div><div class="v">${tariffText}</div></div>
       <div class="item"><div class="k">월 사용량</div><div class="v">${num(monthlyKwh)} kWh</div></div>
       <div class="item"><div class="k">기본요금</div><div class="v">${won(basicCharge)}</div></div>
       <div class="item"><div class="k">전력량요금</div><div class="v">${won(monthlyEnergyCharge)}</div></div>
       <div class="item"><div class="k">부가세 10%</div><div class="v">${won(vat)}</div></div>
       <div class="item"><div class="k">전력산업기반기금 참고</div><div class="v">${won(fund)}</div></div>
       <div class="item"><div class="k">월 예상 합계</div><div class="v">${won(totalBill)}</div></div>`;
-    basis = '간편 공식: 기본요금=계약전력×기본요금단가, 전력량요금=월사용량×전력량단가, 합계≈기본요금+전력량요금+부가세+전력산업기반기금. 실제 한전 청구액은 계약종별·계절·시간대·역률·복지/환경요금 등에 따라 달라집니다.';
-    copy = [`■ 한전 전기요금 간편 계산`, `월 사용량: ${num(monthlyKwh)}kWh`, `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `월 예상 합계: ${won(totalBill)}`, `※ 실제 청구액은 한전 계약종별/계절/시간대 기준 확인 필요`];
+    basis = '간편 공식: 기본요금=계약전력×기본요금단가, 전력량요금=월사용량×전력량단가 또는 시간대별 사용량×시간대별 단가, 합계≈기본요금+전력량요금+부가세+전력산업기반기금. 실제 한전 청구액은 역률요금, 기후환경요금, 연료비조정액, 감면/가산, 최대수요전력 등에 따라 달라집니다.';
+    copy = [`■ 한전 전기요금 간편 계산`, `계약종별: ${tariff.label}`, `계절: ${getSeasonLabel(season)}`, `월 사용량: ${num(monthlyKwh)}kWh`, `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `월 예상 합계: ${won(totalBill)}`, `※ 실제 청구액은 한전 계약종별/계절/시간대 기준 확인 필요`];
   }
 
   if(mode === 'saving'){
@@ -401,6 +471,9 @@ function showEnergyError(message){
 
 function resetEnergy(){
   $('energyMode').value = 'usage';
+  $('tariffType').value = 'industrial_b_highA_1';
+  $('tariffSeason').value = 'summer';
+  $('tariffLoadMode').value = 'flat';
   $('energyKw').value = '';
   $('energyHours').value = '8';
   $('energyDays').value = '30';
@@ -410,5 +483,9 @@ function resetEnergy(){
   $('beforeKw').value = '';
   $('afterKw').value = '';
   $('investment').value = '';
+  $('lightKwh').value = '';
+  $('midKwh').value = '';
+  $('peakKwh').value = '';
+  updateTariffInputs();
   $('energyResult').classList.add('hidden');
 }

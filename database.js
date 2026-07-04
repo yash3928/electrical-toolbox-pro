@@ -73,3 +73,88 @@ const COMMON_CABLE_TOOLS = {
   motor:['절연캡 또는 수축튜브', '상표시 마킹튜브/라벨', '방수테이프(습기 우려 시)', '케이블타이', '압착공구'],
   junction:['직선슬리브 또는 압착슬리브', '수축튜브', '절연테이프', '방수테이프(습기 우려 시)', '압착공구']
 };
+
+// KEPCO 전기요금 간편 DB (공식 요금표 기준, 일부 주요 계약종별만 탑재)
+// 단위: 기본요금 원/kW, 전력량요금 원/kWh
+// season keys: summer, springAutumn, winter. load keys: light, mid, peak.
+const TARIFFS = [
+  {
+    id:'general_a1_low', label:'일반용(갑)Ⅰ 저압전력', type:'flat', basic:5990,
+    energy:{summer:102.9, springAutumn:64.1, winter:88.8},
+    note:'계약전력 300kW 미만 일반용, 저압 단일요금'
+  },
+  {
+    id:'general_a1_highA_1', label:'일반용(갑)Ⅰ 고압A 선택Ⅰ', type:'flat', basic:6990,
+    energy:{summer:113.4, springAutumn:70.8, winter:100.0},
+    note:'일반용(갑)Ⅰ 고압A 선택Ⅰ 단일요금'
+  },
+  {
+    id:'general_b_highA_1', label:'일반용(을) 고압A 선택Ⅰ', type:'tou', basic:6990,
+    energy:{
+      summer:{light:59.1, mid:112.2, peak:192.5},
+      springAutumn:{light:59.1, mid:82.4, peak:112.4},
+      winter:{light:65.3, mid:110.4, peak:165.6}
+    },
+    note:'일반용(을) 고압A 선택Ⅰ 시간대별요금'
+  },
+  {
+    id:'general_b_highA_2', label:'일반용(을) 고압A 선택Ⅱ', type:'tou', basic:8020,
+    energy:{
+      summer:{light:53.8, mid:106.9, peak:187.2},
+      springAutumn:{light:53.8, mid:77.1, peak:107.1},
+      winter:{light:60.0, mid:105.1, peak:160.3}
+    },
+    note:'일반용(을) 고압A 선택Ⅱ 시간대별요금'
+  },
+  {
+    id:'industrial_a1_low', label:'산업용(갑)Ⅰ 저압전력', type:'flat', basic:5270,
+    energy:{summer:76.8, springAutumn:57.9, winter:74.3},
+    note:'산업용(갑)Ⅰ 저압 단일요금'
+  },
+  {
+    id:'industrial_a1_highA_1', label:'산업용(갑)Ⅰ 고압A 선택Ⅰ', type:'flat', basic:6200,
+    energy:{summer:84.5, springAutumn:63.9, winter:83.8},
+    note:'산업용(갑)Ⅰ 고압A 선택Ⅰ 단일요금'
+  },
+  {
+    id:'industrial_a2_highA_1', label:'산업용(갑)Ⅱ 고압A 선택Ⅰ', type:'tou', basic:6990,
+    energy:{
+      summer:{light:58.4, mid:83.9, peak:112.4},
+      springAutumn:{light:58.4, mid:63.1, peak:78.9},
+      winter:{light:65.3, mid:82.4, peak:105.7}
+    },
+    note:'산업용(갑)Ⅱ 고압A 선택Ⅰ 시간대별요금'
+  },
+  {
+    id:'industrial_a2_highA_2', label:'산업용(갑)Ⅱ 고압A 선택Ⅱ', type:'tou', basic:7140,
+    energy:{
+      summer:{light:53.7, mid:79.2, peak:107.7},
+      springAutumn:{light:53.7, mid:58.4, peak:74.2},
+      winter:{light:60.6, mid:77.7, peak:101.0}
+    },
+    note:'산업용(갑)Ⅱ 고압A 선택Ⅱ 시간대별요금'
+  },
+  {
+    id:'industrial_b_highA_1', label:'산업용(을) 고압A 선택Ⅰ', type:'tou', basic:6200,
+    energy:{
+      summer:{light:58.4, mid:83.9, peak:112.4},
+      springAutumn:{light:58.4, mid:63.1, peak:78.9},
+      winter:{light:65.3, mid:82.4, peak:105.7}
+    },
+    note:'산업용(을) 고압A 선택Ⅰ 시간대별요금'
+  },
+  {
+    id:'industrial_b_highA_2', label:'산업용(을) 고압A 선택Ⅱ', type:'tou', basic:8050,
+    energy:{
+      summer:{light:53.8, mid:106.9, peak:187.2},
+      springAutumn:{light:53.8, mid:77.1, peak:107.1},
+      winter:{light:60.0, mid:105.1, peak:160.3}
+    },
+    note:'산업용(을) 고압A 선택Ⅱ 시간대별요금'
+  },
+  {
+    id:'manual', label:'직접입력', type:'flat', basic:0,
+    energy:{summer:0, springAutumn:0, winter:0},
+    note:'직접 단가를 입력합니다.'
+  }
+];

@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 2.2</p>
+        <p class="eyebrow">KEC Edition · Ver 2.3</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">전기 실무 자재 추천기</p>
       </div>
@@ -151,7 +151,7 @@
     <section id="energy" class="panel">
       <div class="card">
         <h2>전력량 · 전기요금 · 절감 계산</h2>
-        <p class="help">전력절감 계획서 작성에 필요한 kWh, 절감률, 예상 요금, 투자회수기간을 계산합니다. 한전 요금은 계약종별·계절·시간대별로 달라지므로 단가는 직접 입력 방식으로 구성했습니다.</p>
+        <p class="help">전력절감 계획서 작성에 필요한 kWh, 절감률, 예상 요금, 투자회수기간을 계산합니다. 계약종별을 선택하면 기본요금과 전력량요금 단가를 자동으로 불러옵니다. 실제 청구액은 한전 고지서의 계약종별·계절·시간대별 사용량을 기준으로 최종 확인하세요.</p>
 
         <div class="grid">
           <label>계산 유형
@@ -159,6 +159,25 @@
               <option value="usage">전력량 계산</option>
               <option value="bill">한전 전기요금 간편 계산</option>
               <option value="saving">전력절감 계획 계산</option>
+            </select>
+          </label>
+
+          <label>계약종별
+            <select id="tariffType"></select>
+          </label>
+
+          <label>계절
+            <select id="tariffSeason">
+              <option value="summer">여름철(7~8월)</option>
+              <option value="springAutumn">봄·가을철(3~6월, 9~10월)</option>
+              <option value="winter">겨울철(11~2월)</option>
+            </select>
+          </label>
+
+          <label>요금 방식
+            <select id="tariffLoadMode">
+              <option value="flat">일반 단가</option>
+              <option value="tou">시간대별 단가</option>
             </select>
           </label>
 
@@ -175,15 +194,27 @@
           </label>
 
           <label>전력량요금 단가(원/kWh)
-            <input id="energyRate" type="number" step="0.1" min="0" placeholder="예: 150" />
+            <input id="energyRate" type="number" step="0.1" min="0" placeholder="계약종별 선택 시 자동" />
           </label>
 
-          <label>기본요금 단가(원/kW) <span class="small">요금 계산 시 선택</span>
-            <input id="basicRate" type="number" step="1" min="0" placeholder="예: 7220" />
+          <label>기본요금 단가(원/kW) <span class="small">자동입력/수정가능</span>
+            <input id="basicRate" type="number" step="1" min="0" placeholder="계약종별 선택 시 자동" />
           </label>
 
           <label>계약전력(kW) <span class="small">요금 계산 시 선택</span>
             <input id="contractKw" type="number" step="0.1" min="0" placeholder="예: 100" />
+          </label>
+
+          <label id="lightKwhWrap">경부하 사용량(kWh) <span class="small">시간대별 선택 시</span>
+            <input id="lightKwh" type="number" step="0.1" min="0" placeholder="예: 10000" />
+          </label>
+
+          <label id="midKwhWrap">중간부하 사용량(kWh) <span class="small">시간대별 선택 시</span>
+            <input id="midKwh" type="number" step="0.1" min="0" placeholder="예: 20000" />
+          </label>
+
+          <label id="peakKwhWrap">최대부하 사용량(kWh) <span class="small">시간대별 선택 시</span>
+            <input id="peakKwh" type="number" step="0.1" min="0" placeholder="예: 5000" />
           </label>
 
           <label>기존 전력(kW) <span class="small">절감률 계산 시 선택</span>
