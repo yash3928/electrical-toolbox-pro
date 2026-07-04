@@ -135,6 +135,83 @@ function getTouTimeGuide(season){
   };
 }
 
+function timeToHour(value){
+  if(!value) return null;
+  const parts = String(value).split(':').map(Number);
+  if(parts.length < 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) return null;
+  return parts[0] + parts[1] / 60;
+}
+
+function makeSegments(start, end){
+  if(start === null || end === null) return [];
+  if(Math.abs(start - end) < 0.0001) return [{start:0, end:24}];
+  if(end > start) return [{start, end}];
+  return [{start, end:24}, {start:0, end}];
+}
+
+function overlapHours(aStart, aEnd, bStart, bEnd){
+  const start = Math.max(aStart, bStart);
+  const end = Math.min(aEnd, bEnd);
+  return Math.max(0, end - start);
+}
+
+function touPeriods(season){
+  if(season === 'winter'){
+    return {
+      light:[[22,24],[0,8]],
+      mid:[[8,9],[12,16],[19,22]],
+      peak:[[9,12],[16,19]]
+    };
+  }
+  return {
+    light:[[22,24],[0,8]],
+    mid:[[8,15],[21,22]],
+    peak:[[15,21]]
+  };
+}
+
+function classifyTimeRange(startValue, endValue, season){
+  const start = timeToHour(startValue);
+  const end = timeToHour(endValue);
+  if(start === null || end === null) return null;
+  const segments = makeSegments(start, end);
+  const periods = touPeriods(season);
+  const result = {light:0, mid:0, peak:0};
+  for(const seg of segments){
+    for(const key of ['light','mid','peak']){
+      for(const [pStart, pEnd] of periods[key]){
+        result[key] += overlapHours(seg.start, seg.end, pStart, pEnd);
+      }
+    }
+  }
+  result.light = Math.round(result.light * 10) / 10;
+  result.mid = Math.round(result.mid * 10) / 10;
+  result.peak = Math.round(result.peak * 10) / 10;
+  return result;
+}
+
+function setHourInputs(prefix, hours){
+  if(!hours) return;
+  const map = prefix === 'old'
+    ? {light:'oldLightHours', mid:'oldMidHours', peak:'oldPeakHours'}
+    : prefix === 'new'
+      ? {light:'newLightHours', mid:'newMidHours', peak:'newPeakHours'}
+      : {light:'saveLightHours', mid:'saveMidHours', peak:'savePeakHours'};
+  if($(map.light)) $(map.light).value = hours.light;
+  if($(map.mid)) $(map.mid).value = hours.mid;
+  if($(map.peak)) $(map.peak).value = hours.peak;
+}
+
+function applyTimeRangeInputs(){
+  const season = getSeasonFromMonth(Number($('tariffMonth')?.value || new Date().getMonth()+1));
+  const oldHours = classifyTimeRange($('oldStartTime')?.value, $('oldEndTime')?.value, season);
+  const newHours = classifyTimeRange($('newStartTime')?.value, $('newEndTime')?.value, season);
+  const saveHours = classifyTimeRange($('saveStartTime')?.value, $('saveEndTime')?.value, season);
+  setHourInputs('old', oldHours);
+  setHourInputs('new', newHours);
+  setHourInputs('save', saveHours);
+}
+
 function getTouPresetHours(mode, season){
   if(mode === 'auto24') return {light:10, mid:8, peak:6, label:'24시간 연속운전'};
   if(mode === 'autoNight') return {light:10, mid:0, peak:0, label:'야간운전 22~08시'};
@@ -166,6 +243,24 @@ function applyTouAutoHours(){
     $('peakHours').value = preset.peak;
   }
   updateTouTimeInfo();
+}
+
+
+function rangeText(label, startId, endId, season){
+  const start = $(startId)?.value;
+  const end = $(endId)?.value;
+  const h = classifyTimeRange(start, end, season);
+  if(!h) return '';
+  return `${label} ${start}~${end} → 경 ${h.light}h/일 · 중 ${h.mid}h/일 · 최 ${h.peak}h/일`;
+}
+
+function buildRangeNote(season){
+  const lines = [
+    rangeText('기존', 'oldStartTime', 'oldEndTime', season),
+    rangeText('변경', 'newStartTime', 'newEndTime', season),
+    rangeText('운전', 'saveStartTime', 'saveEndTime', season)
+  ].filter(Boolean);
+  return lines.length ? `\n\n시간 범위 자동분류\n${lines.join('\n')}` : '';
 }
 
 function updateTariffInputs(){
@@ -483,7 +578,7 @@ function getVal(id){
   return isFinite(v) ? v : 0;
 }
 
-// ===== Ver3.2 simplified power-saving module =====
+// ===== Ver3.3 power-saving module with time-range input =====
 function getSeasonFromMonth(month){
   const m = Number(month || 1);
   if([6,7,8].includes(m)) return 'summer';
@@ -505,6 +600,24 @@ function updateSavingMode(){
   $('powerSavingBox')?.classList.toggle('hidden', type !== 'power');
 }
 
+
+function rangeText(label, startId, endId, season){
+  const start = $(startId)?.value;
+  const end = $(endId)?.value;
+  const h = classifyTimeRange(start, end, season);
+  if(!h) return '';
+  return `${label} ${start}~${end} → 경 ${h.light}h/일 · 중 ${h.mid}h/일 · 최 ${h.peak}h/일`;
+}
+
+function buildRangeNote(season){
+  const lines = [
+    rangeText('기존', 'oldStartTime', 'oldEndTime', season),
+    rangeText('변경', 'newStartTime', 'newEndTime', season),
+    rangeText('운전', 'saveStartTime', 'saveEndTime', season)
+  ].filter(Boolean);
+  return lines.length ? `\n\n시간 범위 자동분류\n${lines.join('\n')}` : '';
+}
+
 function updateTariffInputs(){
   if(!$('tariffType')) return;
   const tariff = getTariff();
@@ -514,7 +627,9 @@ function updateTariffInputs(){
   if($('seasonView')) $('seasonView').value = getSeasonFullLabel(season);
   if($('basicRate')) $('basicRate').value = tariff?.basic || 0;
 
+  applyTimeRangeInputs();
   const guide = getTouTimeGuide(season);
+  const rangeNote = buildRangeNote(season);
   const rateText = tariff?.type === 'tou'
     ? `선택 계약종별은 시간대별 단가 적용\n${guide.light}\n${guide.mid}\n${guide.peak}`
     : `선택 계약종별은 전체시간 단가 적용\n${getSeasonFullLabel(season)} 전력량요금 단가로 계산`;
@@ -560,6 +675,7 @@ function rateSummary(tariff, season, rates){
 function calculateEnergy(){
   try{
     updateTariffInputs();
+    applyTimeRangeInputs();
     const tariff = getTariff();
     const season = $('tariffSeason').value;
     const rates = getTouRates(tariff, season);
@@ -608,6 +724,7 @@ function calculateEnergy(){
         <div class="item"><div class="k">연 절감금액</div><div class="v">${won(saveMoney*12)}</div></div>
         <div class="item full"><div class="k">기존 시간대별 사용량</div><div class="v">경 ${num(before.lightKwh)}kWh · 중 ${num(before.midKwh)}kWh · 최 ${num(before.peakKwh)}kWh</div></div>
         <div class="item full"><div class="k">변경 시간대별 사용량</div><div class="v">경 ${num(after.lightKwh)}kWh · 중 ${num(after.midKwh)}kWh · 최 ${num(after.peakKwh)}kWh</div></div>
+        <div class="item full"><div class="k">시간 범위 참고</div><div class="v">${rangeText('기존', 'oldStartTime', 'oldEndTime', season) || '기존: 수동 시간 입력'}<br>${rangeText('변경', 'newStartTime', 'newEndTime', season) || '변경: 수동 시간 입력'}</div></div>
       `;
       basis = '운전시간 개선: 기존 사용량=부하용량×기존 시간대별 운전시간×월 운전일수, 변경 사용량=부하용량×변경 시간대별 운전시간×월 운전일수, 절감량=기존-변경. 기본요금은 동일하다고 보고 절감금액에는 전력량요금·기후환경요금·연료비조정요금·부가세·전력산업기반기금의 변동분만 반영했습니다.';
       copy = ['■ 운전시간 개선 절감효과', `계약종별: ${tariff.label}`, `부하용량: ${num(kw,3)}kW`, `월 절감전력량: ${num(saveKwh)}kWh`, `연 절감전력량: ${num(saveKwh*12)}kWh`, `월 절감금액: ${won(saveMoney)}`, `연 절감금액: ${won(saveMoney*12)}`];
@@ -643,6 +760,7 @@ function calculateEnergy(){
         <div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div>
         <div class="item"><div class="k">연 절감금액</div><div class="v">${won(saveMoney*12)}</div></div>
         <div class="item full"><div class="k">시간대별 운전</div><div class="v">경 ${num(hours.light,1)}h/일 · 중 ${num(hours.mid,1)}h/일 · 최 ${num(hours.peak,1)}h/일</div></div>
+        <div class="item full"><div class="k">시간 범위 참고</div><div class="v">${rangeText('운전', 'saveStartTime', 'saveEndTime', season) || '수동 시간 입력'}</div></div>
       `;
       basis = '전력량 절감: 절감전력=기존전력-개선후전력, 절감전력량=절감전력×시간대별 운전시간×월 운전일수. 기본요금은 동일하다고 보고 절감금액에는 전력량요금·기후환경요금·연료비조정요금·부가세·전력산업기반기금의 변동분만 반영했습니다.';
       copy = ['■ 전력량 절감효과', `계약종별: ${tariff.label}`, `절감전력: ${num(saveKw,3)}kW`, `월 절감전력량: ${num(saveKwh)}kWh`, `연 절감전력량: ${num(saveKwh*12)}kWh`, `월 절감금액: ${won(saveMoney)}`, `연 절감금액: ${won(saveMoney*12)}`];
@@ -668,6 +786,7 @@ function resetEnergy(){
   ['contractKw','loadKwTime','beforeKw','afterKw'].forEach(id=>{ if($(id)) $(id).value=''; });
   if($('energyDays')) $('energyDays').value = '30';
   ['oldLightHours','oldMidHours','oldPeakHours','newLightHours','newMidHours','newPeakHours','saveLightHours','saveMidHours','savePeakHours'].forEach(id=>{ if($(id)) $(id).value='0'; });
+  ['oldStartTime','oldEndTime','newStartTime','newEndTime','saveStartTime','saveEndTime'].forEach(id=>{ if($(id)) $(id).value=''; });
   if($('climateRate')) $('climateRate').value = '9';
   if($('fuelRate')) $('fuelRate').value = '5';
   updateTariffInputs();
@@ -676,7 +795,7 @@ function resetEnergy(){
 
 document.addEventListener('DOMContentLoaded', () => {
   if($('tariffMonth')) $('tariffMonth').value = String(new Date().getMonth()+1);
-  ['tariffMonth','tariffType','savingType','energyDays','contractKw','loadKwTime','oldLightHours','oldMidHours','oldPeakHours','newLightHours','newMidHours','newPeakHours','beforeKw','afterKw','saveLightHours','saveMidHours','savePeakHours'].forEach(id=>{
+  ['tariffMonth','tariffType','savingType','energyDays','contractKw','loadKwTime','oldStartTime','oldEndTime','newStartTime','newEndTime','oldLightHours','oldMidHours','oldPeakHours','newLightHours','newMidHours','newPeakHours','beforeKw','afterKw','saveStartTime','saveEndTime','saveLightHours','saveMidHours','savePeakHours'].forEach(id=>{
     const el = $(id);
     if(el) el.addEventListener('input', updateTariffInputs);
     if(el) el.addEventListener('change', updateTariffInputs);

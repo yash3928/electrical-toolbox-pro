@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 3.2</p>
+        <p class="eyebrow">KEC Edition · Ver 3.3</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">전기 실무 자재 추천기</p>
       </div>
@@ -247,6 +247,18 @@
             <label>부하용량(kW)
               <input id="loadKwTime" type="number" step="0.001" min="0" placeholder="예: 45" />
             </label>
+            <label>기존 운전 시작
+              <input id="oldStartTime" type="time" value="" />
+            </label>
+            <label>기존 운전 종료
+              <input id="oldEndTime" type="time" value="" />
+            </label>
+            <label>변경 운전 시작
+              <input id="newStartTime" type="time" value="" />
+            </label>
+            <label>변경 운전 종료
+              <input id="newEndTime" type="time" value="" />
+            </label>
             <label>기존 경부하 운전(h/일)
               <input id="oldLightHours" type="number" step="0.1" min="0" max="24" value="0" />
             </label>
@@ -266,6 +278,7 @@
               <input id="newPeakHours" type="number" step="0.1" min="0" max="24" value="0" />
             </label>
           </div>
+          <p class="help small">시작/종료 시간을 입력하면 검침월 계절 기준으로 경부하·중간부하·최대부하 시간이 자동 분류됩니다. 예: 14:00~18:00은 계절에 따라 중간/최대부하로 나뉠 수 있습니다.</p>
         </div>
 
         <div id="powerSavingBox" class="hidden">
@@ -277,6 +290,12 @@
             <label>개선후 전력(kW)
               <input id="afterKw" type="number" step="0.001" min="0" placeholder="예: 56.886" />
             </label>
+            <label>운전 시작
+              <input id="saveStartTime" type="time" value="" />
+            </label>
+            <label>운전 종료
+              <input id="saveEndTime" type="time" value="" />
+            </label>
             <label>경부하 운전(h/일)
               <input id="saveLightHours" type="number" step="0.1" min="0" max="24" value="0" />
             </label>
@@ -287,6 +306,7 @@
               <input id="savePeakHours" type="number" step="0.1" min="0" max="24" value="0" />
             </label>
           </div>
+          <p class="help small">운전 시작/종료 시간을 입력하면 시간대별 운전시간이 자동 분류됩니다. 수동 보정이 필요하면 경·중·최대부하 시간을 직접 수정하세요.</p>
         </div>
 
         <label class="full">시간대 기준 안내
@@ -303,11 +323,11 @@
     </section>
 
     <footer class="notice">
-      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 3.2는 실제 프로젝트 ZIP 기준으로 정리한 안정화 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
+      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 3.3는 실제 프로젝트 ZIP 기준으로 정리한 안정화 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
     </footer>
   </main>
 
-  <script src="database.js?v=3.2"></script>
-  <script src="script.js?v=3.2"></script>
+  <script src="database.js?v=3.3"></script>
+  <script src="script.js?v=3.3"></script>
 </body>
 </html>
