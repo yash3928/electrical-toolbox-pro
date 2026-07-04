@@ -286,18 +286,23 @@ function recommendCable(){
   const sq = parseFloat($('cableSq').value);
   const useLabel = $('cableUse').selectedOptions[0].textContent;
   const typeInfo = CABLE_TYPE_INFO[typeKey];
-  const data = CABLE_ACCESSORY_DB.find(c=>c.sq === sq);
+  const data = CABLE_ACCESSORY_DB.find(c=>Number(c.sq) === Number(sq));
+  if(!data){ toast('케이블 굵기 데이터를 찾을 수 없습니다.'); return; }
+
   const cableName = `${typeInfo.label} × ${sq}SQ`;
   const ringText = formatSqMm(sq, data.ring);
-  const forkText = data.fork.length ? formatSqMm(sq, data.fork) : '대용량은 R형 사용 권장 / 제조사 확인';
+  const forkText = data.fork && data.fork.length ? formatSqMm(sq, data.fork) : '해당 굵기는 원형 압착터미널 우선 검토';
+  const productRing = productList(data.productRing);
+  const productFork = productList(data.productFork);
+
   const copyText = [
     `■ 케이블 터미널 추천`,
     `케이블: ${cableName}`,
     `접속 목적: ${useLabel}`,
-    `R형 원형터미널: ${ringText}`,
-    `제품 표기: ${productList(data.productRing)}`,
-    `Y형 터미널: ${forkText}`,
-    `제품 표기: ${productList(data.productFork)}`,
+    `원형 압착터미널: ${ringText}`,
+    `제품 표기 참고: ${productRing}`,
+    `Y형 터미널 참고: ${forkText}`,
+    `Y형 제품 표기 참고: ${productFork}`,
     `비고: 실제 단자 구멍 지름(mm)과 단자 폭은 접속기기 제조사 치수 확인`
   ].join('\n');
 
@@ -306,10 +311,10 @@ function recommendCable(){
     <div class="resultGrid">
       <div class="item"><div class="k">케이블</div><div class="v">${cableName}</div></div>
       <div class="item"><div class="k">접속 목적</div><div class="v">${useLabel}</div></div>
-      <div class="item full"><div class="k">R형 원형터미널 구매 표기</div><div class="v">${ringText}</div></div>
-      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${productList(data.productRing)}</div></div>
-      <div class="item full"><div class="k">Y형 터미널 구매 표기</div><div class="v">${forkText}</div></div>
-      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${productList(data.productFork)}</div></div>
+      <div class="item full"><div class="k">원형 압착터미널</div><div class="v">${ringText}</div></div>
+      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${productRing}</div></div>
+      <div class="item full"><div class="k">Y형 터미널 참고</div><div class="v">${forkText}</div></div>
+      <div class="item full"><div class="k">Y형 제품 표기 참고</div><div class="v">${productFork}</div></div>
       <div class="item full"><div class="k">비고</div><div class="v">${typeInfo.note}</div></div>
     </div>
     <div class="basis">※ 구매 표기는 “전선 굵기SQ-구멍 지름mm” 기준입니다. 예: 2.5SQ-4mm는 제품 표기상 R2-4와 같은 의미로 쓰입니다. 실제 적용은 차단기·단자대·모터 단자함의 나사 지름과 단자 폭을 최종 확인하세요.</div>
@@ -323,8 +328,11 @@ function recommendTerminalBlock(){
   const amp = parseInt($('terminalBlockAmp').value, 10);
   const poles = $('terminalBlockPole').value;
   const sq = parseFloat($('terminalBlockSq').value);
-  const block = TERMINAL_BLOCK_DB.find(t=>t.amp === amp);
-  const data = CABLE_ACCESSORY_DB.find(c=>c.sq === sq);
+  const block = TERMINAL_BLOCK_DB.find(t=>Number(t.amp) === Number(amp));
+  const data = CABLE_ACCESSORY_DB.find(c=>Number(c.sq) === Number(sq));
+  if(!block){ toast('단자대 정격 데이터를 찾을 수 없습니다.'); return; }
+  if(!data){ toast('케이블 굵기 데이터를 찾을 수 없습니다.'); return; }
+
   const inRange = sq >= block.minSq && sq <= block.maxSq;
   const usableRingHoles = data.ring.filter(h=>block.holes.includes(h));
   const holes = usableRingHoles.length ? usableRingHoles : block.holes;
@@ -335,7 +343,7 @@ function recommendTerminalBlock(){
     `단자대: ${amp}A ${poles}P`,
     `적용 전선 범위: ${block.cableRange}`,
     `선택 케이블: ${sq}SQ`,
-    `추천 R형 터미널: ${terminalText}`,
+    `추천 원형 압착터미널: ${terminalText}`,
     `제품 표기 참고: ${products}`,
     `검토: ${inRange ? '선택 케이블이 단자대 적용 범위 안에 있음' : '선택 케이블이 단자대 권장 범위를 벗어남 - 단자대 정격 재검토'}`
   ].join('\n');
@@ -347,7 +355,7 @@ function recommendTerminalBlock(){
       <div class="item"><div class="k">적용 전선 범위</div><div class="v">${block.cableRange}</div></div>
       <div class="item"><div class="k">선택 케이블</div><div class="v">${sq}SQ</div></div>
       <div class="item"><div class="k">범위 검토</div><div class="v"><span class="badge ${inRange ? 'good' : 'warn'}">${inRange ? '권장 범위' : '재검토 필요'}</span></div></div>
-      <div class="item full"><div class="k">추천 R형 터미널 구매 표기</div><div class="v">${terminalText}</div></div>
+      <div class="item full"><div class="k">추천 원형 압착터미널</div><div class="v">${terminalText}</div></div>
       <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${products}</div></div>
       <div class="item full"><div class="k">비고</div><div class="v">${block.note}</div></div>
     </div>
@@ -489,7 +497,7 @@ function calculateEnergy(){
       <div class="item"><div class="k">부가세 10%</div><div class="v">${won(vat)}</div></div>
       <div class="item"><div class="k">전력산업기반기금 2.7%</div><div class="v">${won(fund)}</div></div>
       <div class="item"><div class="k">월 예상 청구금액</div><div class="v">${won(totalBill)}</div></div>`;
-    basis = '2026.6.1 시행 요금표 반영. 전기요금=기본요금+전력량요금+기후환경요금+연료비조정요금, 부가가치세=전기요금×10%, 전력산업기반기금=전기요금×2.7%(10원 미만 절사), 청구금액=전기요금+부가세+전력산업기반기금. 실제 청구액은 역률요금, 감면/가산, 최대수요전력 등에 따라 달라집니다.';
+    basis = '2026.6.1 시행 한전 요금표(종합) 일반용·산업용 주요 계약종별 반영. 전기요금=기본요금+전력량요금+기후환경요금+연료비조정요금, 부가가치세=전기요금×10%, 전력산업기반기금=전기요금×2.7%(10원 미만 절사), 청구금액=전기요금+부가세+전력산업기반기금. 실제 청구액은 역률요금, 감면/가산, 최대수요전력 등에 따라 달라집니다.';
     copy = [`■ 한전 전기요금 간편 계산`, `계약종별: ${tariff.label}`, `계절: ${getSeasonLabel(season)}`, `월 사용량: ${num(monthlyKwh)}kWh`, `기본요금: ${won(basicCharge)}`, `전력량요금: ${won(monthlyEnergyCharge)}`, `기후환경요금: ${won(climateCharge)}`, `연료비조정요금: ${won(fuelCharge)}`, `전기요금 소계: ${won(electricityCharge)}`, `부가세: ${won(vat)}`, `전력산업기반기금: ${won(fund)}`, `월 예상 청구금액: ${won(totalBill)}`, `※ 실제 청구액은 한전 고지서 기준 확인 필요`];
   }
 
