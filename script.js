@@ -1017,3 +1017,241 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
   updateInverterUi();
 });
+
+/* Ver 4.4 overrides: 인버터 기능 제거, 정지시간 분 입력, 클릭형 시간범위 선택 */
+function hourToClock(h){
+  h = Math.round(h * 60) / 60;
+  if(h >= 24) return '24:00';
+  if(h < 0) h = 0;
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  return String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+}
+
+function splitRangeDetails(text, season){
+  const ranges = parseTimeRanges(text);
+  const periods = touPeriods(season);
+  const detail = {
+    light:{hours:0, ranges:[]},
+    mid:{hours:0, ranges:[]},
+    peak:{hours:0, ranges:[]}
+  };
+  for(const r of ranges){
+    const start = timeToHour(r.start), end = timeToHour(r.end);
+    if(start === null || end === null) continue;
+    const segs = makeSegments(start, end);
+    for(const seg of segs){
+      for(const key of ['light','mid','peak']){
+        for(const [ps, pe] of periods[key]){
+          const s = Math.max(seg.start, ps);
+          const e = Math.min(seg.end, pe);
+          if(e > s){
+            detail[key].hours += e - s;
+            detail[key].ranges.push(`${hourToClock(s)}~${hourToClock(e)}`);
+          }
+        }
+      }
+    }
+  }
+  for(const key of ['light','mid','peak']) detail[key].hours = Math.round(detail[key].hours * 10) / 10;
+  return detail;
+}
+
+function formatPeriodLine(name, info){
+  const list = info.ranges.length ? ` (${info.ranges.join(', ')})` : '';
+  return `${name} ${num(info.hours,1)}h/일${list}`;
+}
+
+function formatRangeBreakdown(label, text, season){
+  if(!text) return `${label}: 입력 없음`;
+  const d = splitRangeDetails(text, season);
+  return `${label}<br>${formatPeriodLine('경부하', d.light)}<br>${formatPeriodLine('중간부하', d.mid)}<br>${formatPeriodLine('최대부하', d.peak)}`;
+}
+
+function calcStopMinuteNote(){
+  const oldM = getVal('oldStopMinutes');
+  const newM = getVal('newStopMinutes');
+  if(oldM <= 0 && newM <= 0) return '';
+  const diff = newM - oldM;
+  const diffText = diff === 0 ? '변동 없음' : (diff > 0 ? `정지시간 ${num(diff,0)}분/일 증가` : `정지시간 ${num(Math.abs(diff),0)}분/일 감소`);
+  return `<div class="item full"><div class="k">정지 시간 참고</div><div class="v">기존: ${num(oldM,0)}분/일 · 변경: ${num(newM,0)}분/일<br>${diffText}</div></div>`;
+}
+
+function calculateEnergy(){
+  try{
+    updateTariffInputs();
+    const tariff = getTariff();
+    const season = $('tariffSeason').value;
+    const rates = getTouRates(tariff, season);
+    const days = getVal('energyDays');
+    const contractKw = getVal('contractKw');
+    const climateRate = getVal('climateRate');
+    const fuelRate = getVal('fuelRate');
+    const basicCharge = contractKw * (tariff.basic || 0);
+    const savingType = $('savingType')?.value || 'time';
+    if(days <= 0) throw new Error('월 운전일수를 입력하세요.');
+    let title='', rows='', copy=[], basis='';
+
+    if(savingType === 'time'){
+      const kw = getVal('loadKwTime');
+      if(kw <= 0) throw new Error('부하용량(kW)을 입력하세요.');
+      const oldText = $('oldRunRanges')?.value || '';
+      const newText = $('newRunRanges')?.value || '';
+      if(!oldText) throw new Error('기존 가동 시간을 입력하세요. 예: 08:00-11:00, 13:00-15:00');
+      if(!newText) throw new Error('변경 가동 시간을 입력하세요.');
+      const oldHours = classifyTimeRangesText(oldText, season);
+      const newHours = classifyTimeRangesText(newText, season);
+      validateHours(oldHours, '기존 가동 시간');
+      validateHours(newHours, '변경 가동 시간');
+      const before = calcByTouHours(kw, days, oldHours, rates);
+      const after = calcByTouHours(kw, days, newHours, rates);
+      const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+      const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+      const saveKwh = before.kwh - after.kwh;
+      const saveMoney = beforeFee.total - afterFee.total;
+      const saveRate = before.kwh > 0 ? saveKwh / before.kwh * 100 : 0;
+      title='운전시간 개선 절감효과';
+      rows = `
+        <div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div>
+        <div class="item"><div class="k">부하용량</div><div class="v">${num(kw,3)} kW</div></div>
+        <div class="item"><div class="k">기본요금 참고</div><div class="v">${won(basicCharge)}</div></div>
+        <div class="item"><div class="k">기존 월 사용량</div><div class="v">${num(before.kwh)} kWh</div></div>
+        <div class="item"><div class="k">변경 월 사용량</div><div class="v">${num(after.kwh)} kWh</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div>
+        <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(saveKwh*12)} kWh</div></div>
+        <div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div>
+        <div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div>
+        <div class="item"><div class="k">연 절감금액</div><div class="v">${won(saveMoney*12)}</div></div>
+        <div class="item full"><div class="k">기존 시간대별 사용량</div><div class="v">경 ${num(before.lightKwh)}kWh · 중 ${num(before.midKwh)}kWh · 최 ${num(before.peakKwh)}kWh</div></div>
+        <div class="item full"><div class="k">변경 시간대별 사용량</div><div class="v">경 ${num(after.lightKwh)}kWh · 중 ${num(after.midKwh)}kWh · 최 ${num(after.peakKwh)}kWh</div></div>
+        <div class="item full"><div class="k">가동 시간 자동분류</div><div class="v">${formatRangeBreakdown('기존', oldText, season)}<br><br>${formatRangeBreakdown('변경', newText, season)}</div></div>
+        ${calcStopMinuteNote()}`;
+      basis = '운전시간 개선: 클릭 또는 직접 입력한 복수 가동 시간 범위를 계절별 경부하·중간부하·최대부하로 자동 배분한 뒤, 부하용량×시간×월 운전일수로 사용량을 산정합니다.';
+      copy = ['■ 운전시간 개선 절감효과',`계약종별: ${tariff.label}`,`부하용량: ${num(kw,3)}kW`,`월 절감전력량: ${num(saveKwh)}kWh`,`연 절감전력량: ${num(saveKwh*12)}kWh`,`월 절감금액: ${won(saveMoney)}`,`연 절감금액: ${won(saveMoney*12)}`];
+    } else {
+      const beforeKw = getVal('beforeKw'), afterKw = getVal('afterKw');
+      if(beforeKw <= 0) throw new Error('기존전력(kW)을 입력하세요.');
+      if(afterKw < 0) throw new Error('개선후 전력(kW)을 입력하세요.');
+      if(afterKw > beforeKw) throw new Error('개선후 전력이 기존전력보다 큽니다.');
+      const runText = $('saveRunRanges')?.value || '';
+      if(!runText) throw new Error('가동 시간을 입력하세요. 예: 08:00-11:00, 13:00-15:00');
+      const hours = classifyTimeRangesText(runText, season);
+      validateHours(hours, '가동 시간');
+      const before = calcByTouHours(beforeKw, days, hours, rates);
+      const after = calcByTouHours(afterKw, days, hours, rates);
+      const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+      const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+      const saveKw = beforeKw - afterKw;
+      const saveKwh = before.kwh - after.kwh;
+      const saveMoney = beforeFee.total - afterFee.total;
+      const saveRate = saveKw / beforeKw * 100;
+      title='전력량 절감효과';
+      rows = `
+        <div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div>
+        <div class="item"><div class="k">기존전력</div><div class="v">${num(beforeKw,3)} kW</div></div>
+        <div class="item"><div class="k">개선후 전력</div><div class="v">${num(afterKw,3)} kW</div></div>
+        <div class="item"><div class="k">절감전력</div><div class="v">${num(saveKw,3)} kW</div></div>
+        <div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div>
+        <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(saveKwh*12)} kWh</div></div>
+        <div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div>
+        <div class="item"><div class="k">연 절감금액</div><div class="v">${won(saveMoney*12)}</div></div>
+        <div class="item full"><div class="k">가동 시간 자동분류</div><div class="v">${formatRangeBreakdown('가동', runText, season)}</div></div>`;
+      basis='전력량 절감: 기존전력과 개선후 전력 차이를 시간대별 가동 시간에 적용해 절감전력량과 절감금액을 계산합니다.';
+      copy=['■ 전력량 절감효과',`계약종별: ${tariff.label}`,`절감전력: ${num(saveKw,3)}kW`,`월 절감전력량: ${num(saveKwh)}kWh`,`연 절감전력량: ${num(saveKwh*12)}kWh`,`월 절감금액: ${won(saveMoney)}`,`연 절감금액: ${won(saveMoney*12)}`];
+    }
+    $('energyResult').innerHTML = `<h3>${title}</h3><div class="resultGrid">${rows}</div><div class="basis">${basis}</div><button class="copyBtn" data-copy="${escapeHtml(copy.join('\n'))}">결과 복사하기</button>`;
+    $('energyResult').classList.remove('hidden');
+    bindCopyButtons();
+  }catch(e){ showEnergyError(e.message); }
+}
+
+function resetEnergy(){
+  if($('tariffType')) $('tariffType').value = 'industrial_b_highA_1';
+  if($('tariffMonth')) $('tariffMonth').value = String(new Date().getMonth()+1);
+  if($('savingType')) $('savingType').value = 'time';
+  ['contractKw','loadKwTime','beforeKw','afterKw','oldRunRanges','newRunRanges','oldStopMinutes','newStopMinutes','saveRunRanges'].forEach(id=>{ if($(id)) $(id).value=''; });
+  if($('energyDays')) $('energyDays').value = '30';
+  ['oldLightHours','oldMidHours','oldPeakHours','newLightHours','newMidHours','newPeakHours','saveLightHours','saveMidHours','savePeakHours'].forEach(id=>{ if($(id)) $(id).value='0'; });
+  updateTariffInputs();
+  $('energyResult')?.classList.add('hidden');
+}
+
+let activeTimeTarget = null;
+let pickerStart = null;
+function buildTimeSlotGrid(){
+  const grid = $('timeSlotGrid');
+  if(!grid || grid.dataset.ready) return;
+  for(let m=0; m<=24*60; m+=30){
+    const hh = Math.floor(m/60);
+    const mm = m % 60;
+    if(hh === 24 && mm > 0) continue;
+    const t = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'time-slot';
+    b.textContent = t;
+    b.dataset.time = t;
+    b.addEventListener('click', () => pickTimeSlot(t, b));
+    grid.appendChild(b);
+  }
+  grid.dataset.ready = '1';
+}
+function openTimePicker(targetId){
+  activeTimeTarget = targetId;
+  pickerStart = null;
+  buildTimeSlotGrid();
+  $('timeRangePicker')?.classList.remove('hidden');
+  document.querySelectorAll('.time-slot').forEach(x=>x.classList.remove('selected'));
+  const label = targetId === 'oldRunRanges' ? '기존 가동 시간' : targetId === 'newRunRanges' ? '변경 가동 시간' : '가동 시간';
+  if($('pickerStatus')) $('pickerStatus').textContent = `${label}: 시작 시간을 선택하세요.`;
+  $('timeRangePicker')?.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function appendRangeToInput(targetId, range){
+  const input = $(targetId);
+  if(!input) return;
+  const current = input.value.trim();
+  input.value = current ? `${current}, ${range}` : range;
+  input.dispatchEvent(new Event('input', {bubbles:true}));
+}
+function pickTimeSlot(time, btn){
+  if(!activeTimeTarget){
+    if($('pickerStatus')) $('pickerStatus').textContent = '먼저 시간 선택 버튼을 누르세요.';
+    return;
+  }
+  if(!pickerStart){
+    pickerStart = time;
+    document.querySelectorAll('.time-slot').forEach(x=>x.classList.remove('selected'));
+    btn.classList.add('selected');
+    if($('pickerStatus')) $('pickerStatus').textContent = `시작 ${time} 선택됨. 종료 시간을 선택하세요.`;
+    return;
+  }
+  if(time === pickerStart){
+    if($('pickerStatus')) $('pickerStatus').textContent = '시작과 종료가 같습니다. 다른 종료 시간을 선택하세요.';
+    return;
+  }
+  const range = `${pickerStart}-${time}`;
+  appendRangeToInput(activeTimeTarget, range);
+  if($('pickerStatus')) $('pickerStatus').textContent = `${range} 추가됨. 계속 추가하거나 닫기를 누르세요.`;
+  pickerStart = null;
+  document.querySelectorAll('.time-slot').forEach(x=>x.classList.remove('selected'));
+}
+function initTimePicker(){
+  document.querySelectorAll('.time-pick-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>openTimePicker(btn.dataset.target));
+  });
+  $('timePickerClose')?.addEventListener('click', ()=>$('timeRangePicker')?.classList.add('hidden'));
+  $('timePickerClear')?.addEventListener('click', ()=>{
+    pickerStart = null;
+    document.querySelectorAll('.time-slot').forEach(x=>x.classList.remove('selected'));
+    if($('pickerStatus')) $('pickerStatus').textContent = activeTimeTarget ? '시작 시간을 선택하세요.' : '입력란을 선택하세요.';
+  });
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  ['oldRunRanges','newRunRanges','oldStopMinutes','newStopMinutes','saveRunRanges'].forEach(id=>{
+    const el=$(id);
+    if(el){ el.addEventListener('input', updateTariffInputs); el.addEventListener('change', updateTariffInputs); }
+  });
+  initTimePicker();
+});

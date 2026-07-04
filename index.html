@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 4.3</p>
+        <p class="eyebrow">KEC Edition · Ver 4.4</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">KEC 기반 전기 실무 보조 툴</p>
       </div>
@@ -242,34 +242,17 @@
             </label>
             <label>기존 가동 시간
               <input id="oldRunRanges" type="text" placeholder="예: 08:00-11:00, 13:00-15:00" />
+              <button type="button" class="mini time-pick-btn" data-target="oldRunRanges">시간 선택</button>
             </label>
             <label>변경 가동 시간
               <input id="newRunRanges" type="text" placeholder="예: 22:00-06:00" />
+              <button type="button" class="mini time-pick-btn" data-target="newRunRanges">시간 선택</button>
             </label>
-            <label>기존 정지 시간(참고)
-              <input id="oldStopRanges" type="text" placeholder="예: 11:00-13:00" />
+            <label>기존 정지 시간(분/일, 참고)
+              <input id="oldStopMinutes" type="number" step="1" min="0" placeholder="예: 30" />
             </label>
-            <label>변경 정지 시간(참고)
-              <input id="newStopRanges" type="text" placeholder="예: 18:00-22:00" />
-            </label>
-            <label class="checkline">
-              <input id="inverterMode" type="checkbox" /> 인버터 Hz 기준 부하 산정
-            </label>
-            <label class="inverter-field hidden">기준 부하(kW)
-              <input id="invBaseKw" type="number" step="0.001" min="0" placeholder="예: 45" />
-            </label>
-            <label class="inverter-field hidden">기준 주파수(Hz)
-              <input id="invBaseHz" type="number" step="0.1" min="1" value="60" />
-            </label>
-            <label class="inverter-field hidden">운전 주파수(Hz)
-              <input id="invRunHz" type="number" step="0.1" min="0" placeholder="예: 45" />
-            </label>
-            <label class="inverter-field hidden">부하 특성
-              <select id="invExponent">
-                <option value="3">펌프/팬류 참고: Hz³</option>
-                <option value="2">토크성 부하 참고: Hz²</option>
-                <option value="1">정토크 근사: Hz</option>
-              </select>
+            <label>변경 정지 시간(분/일, 참고)
+              <input id="newStopMinutes" type="number" step="1" min="0" placeholder="예: 35" />
             </label>
             <input id="oldLightHours" type="hidden" value="0" />
             <input id="oldMidHours" type="hidden" value="0" />
@@ -292,12 +275,29 @@
             </label>
             <label>가동 시간
               <input id="saveRunRanges" type="text" placeholder="예: 08:00-11:00, 13:00-15:00" />
+              <button type="button" class="mini time-pick-btn" data-target="saveRunRanges">시간 선택</button>
             </label>
             <input id="saveLightHours" type="hidden" value="0" />
             <input id="saveMidHours" type="hidden" value="0" />
             <input id="savePeakHours" type="hidden" value="0" />
           </div>
           <p class="help small">가동 시간은 여러 구간 입력이 가능합니다. 예: <b>08:00-11:00, 13:00-15:00</b>. 경부하·중간부하·최대부하 운전시간은 자동 계산되어 결과에만 표시됩니다.</p>
+        </div>
+
+
+        <div id="timeRangePicker" class="time-picker hidden">
+          <div class="time-picker-head">
+            <div>
+              <strong>가동 시간 클릭 선택</strong>
+              <p class="help small">시작 시간을 누른 뒤 종료 시간을 누르면 선택한 입력란에 자동 추가됩니다. 30분 단위 선택이 가능합니다.</p>
+            </div>
+            <button type="button" id="timePickerClose" class="mini secondary">닫기</button>
+          </div>
+          <div class="picker-status" id="pickerStatus">입력란을 선택하세요.</div>
+          <div class="time-grid" id="timeSlotGrid"></div>
+          <div class="actions compact">
+            <button type="button" id="timePickerClear" class="secondary">선택 초기화</button>
+          </div>
         </div>
 
         <label class="full">시간대 기준 안내
@@ -315,11 +315,11 @@
 
 
     <footer class="notice">
-      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 4.3은 전력절감 시간대 입력을 복수 시간범위 방식으로 개선하고, 인버터 Hz 기반 부하 산정 보조 기능을 추가한 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
+      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 4.4는 인버터 추정 기능을 제거하고, 전력절감 시간대를 클릭 선택 방식으로 개선한 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
     </footer>
   </main>
 
-  <script src="database.js?v=4.3"></script>
-  <script src="script.js?v=4.3"></script>
+  <script src="database.js?v=4.4"></script>
+  <script src="script.js?v=4.4"></script>
 </body>
 </html>
