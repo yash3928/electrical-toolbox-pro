@@ -1,133 +1,116 @@
-/* Electrical Toolbox Pro - script.js */
+function qs(id) { return document.getElementById(id); }
 
-const $ = (id) => document.getElementById(id);
-
-function formatNumber(value, digits = 1) {
-  return Number(value).toLocaleString('ko-KR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: digits
-  });
+function formatNumber(num, digits = 1) {
+  return Number(num).toLocaleString('ko-KR', { maximumFractionDigits: digits });
 }
 
-function initOptions() {
-  const hpSelect = $('hpSelect');
-  const kwSelect = $('kwSelect');
+function populateSelects() {
+  const hpSelect = qs('hpSelect');
+  const kwSelect = qs('kwSelect');
 
-  MOTOR_DB.forEach((item, index) => {
-    const hpOption = document.createElement('option');
-    hpOption.value = String(index);
-    hpOption.textContent = `${item.hp} HP (${item.kw} kW)`;
-    hpSelect.appendChild(hpOption);
+  MOTOR_DB.forEach((item) => {
+    const hpOpt = document.createElement('option');
+    hpOpt.value = String(item.hp);
+    hpOpt.textContent = `${item.hp} HP (${item.kw} kW)`;
+    hpSelect.appendChild(hpOpt);
 
-    const kwOption = document.createElement('option');
-    kwOption.value = String(index);
-    kwOption.textContent = `${item.kw} kW (${item.hp} HP)`;
-    kwSelect.appendChild(kwOption);
+    const kwOpt = document.createElement('option');
+    kwOpt.value = String(item.kw);
+    kwOpt.textContent = `${item.kw} kW (${item.hp} HP)`;
+    kwSelect.appendChild(kwOpt);
   });
 
-  hpSelect.value = '2'; // 기본 3HP
-  kwSelect.value = '2';
-  toggleInputMode();
-  recommendMaterials();
+  hpSelect.value = '3';
+  kwSelect.value = '2.2';
 }
 
-function toggleInputMode() {
+function switchInputMode() {
   const mode = document.querySelector('input[name="inputMode"]:checked').value;
-  $('hpGroup').classList.toggle('hidden', mode !== 'hp');
-  $('kwGroup').classList.toggle('hidden', mode !== 'kw');
+  qs('hpGroup').classList.toggle('hidden', mode !== 'hp');
+  qs('kwGroup').classList.toggle('hidden', mode !== 'kw');
 }
 
 function getSelectedMotor() {
   const mode = document.querySelector('input[name="inputMode"]:checked').value;
-  const index = mode === 'hp' ? Number($('hpSelect').value) : Number($('kwSelect').value);
-  return MOTOR_DB[index];
+  if (mode === 'hp') {
+    const hp = Number(qs('hpSelect').value);
+    return MOTOR_DB.find((item) => item.hp === hp);
+  }
+  const kw = Number(qs('kwSelect').value);
+  return MOTOR_DB.find((item) => item.kw === kw);
 }
 
-function nextStandardBreaker(requiredAmp) {
-  return BREAKER_STANDARDS.find((rating) => rating >= requiredAmp) || BREAKER_STANDARDS[BREAKER_STANDARDS.length - 1];
+function parseAt(text) {
+  const match = text.match(/\/\s*(\d+)AT/);
+  return match ? Number(match[1]) : null;
 }
 
-function chooseBreaker(current) {
-  const required = current * 1.25;
-  return nextStandardBreaker(required);
-}
-
-function chooseCable(current, breakerAt) {
-  // 간편 KEC 검토: 전동기 회로 여유율과 보호장치 정격을 동시에 만족하도록 보수적으로 선정
-  const requiredAmpacity = Math.max(current * 1.25, breakerAt);
-  return CABLE_DB.find((cable) => cable.ampacity >= requiredAmpacity) || CABLE_DB[CABLE_DB.length - 1];
-}
-
-function makeResultText(motor, breakerAt, cable) {
-  return [
-    `모터: ${motor.hp}HP (${motor.kw}kW), 3상 380V`,
-    `정격전류: ${formatNumber(motor.current)}A`,
-    `MCCB: 3P ${breakerAt}AF / ${breakerAt}AT`,
-    `누전차단기: 3P ${breakerAt}AF / ${breakerAt}AT, 감도전류는 현장 기준 적용`,
-    `케이블: ${cable.cable}`,
-    `터미널: ${cable.terminal}`,
-    `전선관: ${cable.conduit}`
-  ].join('\n');
-}
-
-function recommendMaterials() {
+function recommendMaterial() {
   const motor = getSelectedMotor();
-  const breakerAt = chooseBreaker(motor.current);
-  const cable = chooseCable(motor.current, breakerAt);
-  const requiredBreaker = motor.current * 1.25;
-  const requiredCable = Math.max(motor.current * 1.25, breakerAt);
+  if (!motor) return;
 
-  $('motorInfo').textContent = `${motor.hp}HP / ${motor.kw}kW`;
-  $('currentInfo').textContent = `${formatNumber(motor.current)} A`;
-  $('mccbInfo').textContent = `MCCB 3P ${breakerAt}AF / ${breakerAt}AT`;
-  $('elbInfo').textContent = `ELB 3P ${breakerAt}AF / ${breakerAt}AT`;
-  $('cableInfo').textContent = cable.cable;
-  $('terminalInfo').textContent = cable.terminal;
-  $('conduitInfo').textContent = cable.conduit;
+  const at = parseAt(motor.mccb);
+  const kecOk = at && motor.current <= at && at <= motor.iz;
 
-  $('basisCurrent').textContent = `${formatNumber(motor.current)}A × 125% = ${formatNumber(requiredBreaker)}A → 표준 ${breakerAt}A 선정`;
-  $('basisCable').textContent = `필요 허용전류 ${formatNumber(requiredCable)}A 이상 → ${cable.cable} (참고 허용전류 ${cable.ampacity}A)`;
-  $('copyText').value = makeResultText(motor, breakerAt, cable);
-  $('resultPanel').classList.remove('hidden');
+  qs('result').classList.remove('hidden');
+  qs('motorName').textContent = `${motor.hp} HP (${motor.kw} kW)`;
+  qs('current').textContent = `${formatNumber(motor.current)} A`;
+  qs('mccb').textContent = motor.mccb;
+  qs('elb').textContent = motor.elb;
+  qs('cable').textContent = motor.cable;
+  qs('terminal').textContent = motor.terminal;
+  qs('conduit').textContent = motor.conduit;
+  qs('iz').textContent = `${formatNumber(motor.iz)} A`;
+
+  qs('kecCheck').innerHTML = kecOk
+    ? `<strong class="ok">적합</strong> · Ib(${formatNumber(motor.current)}A) ≤ In(${at}A) ≤ Iz(${formatNumber(motor.iz)}A)`
+    : `<strong class="warn">확인 필요</strong> · Ib/In/Iz 관계를 현장 조건으로 재검토하세요.`;
 }
 
 async function copyResult() {
-  const text = $('copyText').value;
+  const motor = getSelectedMotor();
+  if (!motor) return;
+
+  const text = `[Electrical Toolbox Pro]\n` +
+    `모터: ${motor.hp}HP (${motor.kw}kW), 3상 380V\n` +
+    `정격전류: ${motor.current}A\n` +
+    `MCCB: ${motor.mccb}\n` +
+    `ELB: ${motor.elb}\n` +
+    `케이블: ${motor.cable}\n` +
+    `터미널: ${motor.terminal}\n` +
+    `전선관: ${motor.conduit}\n` +
+    `※ 일반 기준 추천값이며, 포설조건/온도/집합보정/전압강하/차단용량은 현장 확인 필요`;
+
   try {
     await navigator.clipboard.writeText(text);
-    showToast('결과가 복사되었습니다.');
-  } catch (error) {
-    $('copyText').classList.remove('hidden');
-    $('copyText').select();
-    document.execCommand('copy');
-    showToast('결과가 복사되었습니다.');
+    showToast('결과를 복사했습니다.');
+  } catch (e) {
+    const area = qs('copyArea');
+    area.value = text;
+    area.classList.remove('hidden');
+    area.select();
+    showToast('복사창에서 직접 복사하세요.');
   }
 }
 
 function showToast(message) {
-  const toast = $('toast');
+  const toast = qs('toast');
   toast.textContent = message;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 1800);
 }
 
-function resetSelection() {
-  document.querySelector('input[name="inputMode"][value="hp"]').checked = true;
-  $('hpSelect').value = '2';
-  $('kwSelect').value = '2';
-  toggleInputMode();
-  recommendMaterials();
+function bindEvents() {
+  document.querySelectorAll('input[name="inputMode"]').forEach((radio) => {
+    radio.addEventListener('change', switchInputMode);
+  });
+  qs('recommendBtn').addEventListener('click', recommendMaterial);
+  qs('copyBtn').addEventListener('click', copyResult);
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  initOptions();
-  document.querySelectorAll('input[name="inputMode"]').forEach((radio) => {
-    radio.addEventListener('change', toggleInputMode);
-  });
-  $('hpSelect').addEventListener('change', () => {
-    $('kwSelect').value = $('hpSelect').value;
-  });
-  $('kwSelect').addEventListener('change', () => {
-    $('hpSelect').value = $('kwSelect').value;
-  });
+document.addEventListener('DOMContentLoaded', () => {
+  populateSelects();
+  bindEvents();
+  switchInputMode();
+  recommendMaterial();
 });
