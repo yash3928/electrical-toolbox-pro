@@ -11,16 +11,16 @@ const BREAKER_FRAMES = [
 
 // 실무 간편 CV 케이블 허용전류 DB. 실제 적용 전 KEC 포설조건/보정계수로 재검토.
 const CABLES = [
-  {sq:2.5, iz:28, terminal:'R2-4', cableOD:13.5},
-  {sq:4, iz:37, terminal:'R3.5-4', cableOD:15.2},
-  {sq:6, iz:47, terminal:'R5.5-5', cableOD:17.0},
-  {sq:10, iz:65, terminal:'R8-5', cableOD:20.5},
-  {sq:16, iz:87, terminal:'R14-6', cableOD:24.0},
-  {sq:25, iz:115, terminal:'R22-8', cableOD:29.0},
-  {sq:35, iz:142, terminal:'R38-8', cableOD:33.0},
-  {sq:50, iz:175, terminal:'R60-10', cableOD:39.0},
-  {sq:70, iz:220, terminal:'R70-10', cableOD:45.0},
-  {sq:95, iz:270, terminal:'R100-12', cableOD:52.0}
+  {sq:2.5, iz:28, terminal:'2.5SQ-4mm', cableOD:13.5},
+  {sq:4, iz:37, terminal:'4SQ-5mm', cableOD:15.2},
+  {sq:6, iz:47, terminal:'6SQ-5mm', cableOD:17.0},
+  {sq:10, iz:65, terminal:'10SQ-6mm', cableOD:20.5},
+  {sq:16, iz:87, terminal:'16SQ-8mm', cableOD:24.0},
+  {sq:25, iz:115, terminal:'25SQ-8mm', cableOD:29.0},
+  {sq:35, iz:142, terminal:'35SQ-8mm', cableOD:33.0},
+  {sq:50, iz:175, terminal:'50SQ-10mm', cableOD:39.0},
+  {sq:70, iz:220, terminal:'70SQ-10mm', cableOD:45.0},
+  {sq:95, iz:270, terminal:'95SQ-12mm', cableOD:52.0}
 ];
 
 const CONDUIT_ACCESSORIES = {
@@ -46,19 +46,21 @@ const LOCATION_RULES = {
   outdoorWet:{label:'옥외/습기 우려', conduitType:'GW'}
 };
 
-// 케이블 굵기별 터미널 간편 DB. 표기는 실무 구매 편의를 위해 SQ-mm를 우선 표시하고, 제품 표기(R/Y)를 함께 제공합니다.
+// 케이블 굵기별 터미널 간편 DB.
+// 혼동 방지를 위해 웹페이지에는 대표 추천 1개만 표시합니다.
+// 표기는 현장 구매 편의를 위해 SQ-mm 형식으로 통일합니다.
 const CABLE_ACCESSORY_DB = [
-  {sq:1.5, ring:[3.5,4], fork:[3.5,4], productRing:['R1.5-3.5','R1.5-4'], productFork:['Y1.5-3.5','Y1.5-4']},
-  {sq:2.5, ring:[4,5], fork:[4,5], productRing:['R2-4','R2-5'], productFork:['Y2-4','Y2-5']},
-  {sq:4, ring:[4,5,6], fork:[4,5], productRing:['R3.5-4','R3.5-5','R3.5-6'], productFork:['Y3.5-4','Y3.5-5']},
-  {sq:6, ring:[5,6], fork:[5,6], productRing:['R5.5-5','R5.5-6'], productFork:['Y5.5-5','Y5.5-6']},
-  {sq:10, ring:[5,6,8], fork:[5,6], productRing:['R8-5','R8-6','R8-8'], productFork:['Y8-5','Y8-6']},
-  {sq:16, ring:[6,8,10], fork:[6,8], productRing:['R14-6','R14-8','R14-10'], productFork:['Y14-6','Y14-8']},
-  {sq:25, ring:[8,10], fork:[8], productRing:['R22-8','R22-10'], productFork:['Y22-8']},
-  {sq:35, ring:[8,10], fork:[8], productRing:['R38-8','R38-10'], productFork:['Y38-8']},
-  {sq:50, ring:[10,12], fork:[], productRing:['R60-10','R60-12'], productFork:[]},
-  {sq:70, ring:[10,12], fork:[], productRing:['R70-10','R70-12'], productFork:[]},
-  {sq:95, ring:[12,14], fork:[], productRing:['R100-12','R100-14'], productFork:[]}
+  {sq:1.5, terminal:'1.5SQ-4mm'},
+  {sq:2.5, terminal:'2.5SQ-4mm'},
+  {sq:4, terminal:'4SQ-5mm'},
+  {sq:6, terminal:'6SQ-5mm'},
+  {sq:10, terminal:'10SQ-6mm'},
+  {sq:16, terminal:'16SQ-8mm'},
+  {sq:25, terminal:'25SQ-8mm'},
+  {sq:35, terminal:'35SQ-8mm'},
+  {sq:50, terminal:'50SQ-10mm'},
+  {sq:70, terminal:'70SQ-10mm'},
+  {sq:95, terminal:'95SQ-12mm'}
 ];
 
 const CABLE_TYPE_INFO = {

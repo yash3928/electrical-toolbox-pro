@@ -77,12 +77,8 @@ function syncTerminalBlockDefaultSq(){
   if(block) $('terminalBlockSq').value = String(block.defaultSq);
 }
 
-function formatSqMm(sq, holes){
-  return holes.map(h=>`${sq}SQ-${h}mm`).join(', ');
-}
-
-function productList(prefixItems){
-  return prefixItems && prefixItems.length ? prefixItems.join(', ') : '해당 없음/제조사 확인';
+function formatTerminal(data){
+  return data?.terminal || '제조사 확인';
 }
 
 
@@ -290,20 +286,14 @@ function recommendCable(){
   if(!data){ toast('케이블 굵기 데이터를 찾을 수 없습니다.'); return; }
 
   const cableName = `${typeInfo.label} × ${sq}SQ`;
-  const ringText = formatSqMm(sq, data.ring);
-  const forkText = data.fork && data.fork.length ? formatSqMm(sq, data.fork) : '해당 굵기는 원형 압착터미널 우선 검토';
-  const productRing = productList(data.productRing);
-  const productFork = productList(data.productFork);
+  const terminalText = formatTerminal(data);
 
   const copyText = [
     `■ 케이블 터미널 추천`,
     `케이블: ${cableName}`,
     `접속 목적: ${useLabel}`,
-    `원형 압착터미널: ${ringText}`,
-    `제품 표기 참고: ${productRing}`,
-    `Y형 터미널 참고: ${forkText}`,
-    `Y형 제품 표기 참고: ${productFork}`,
-    `비고: 실제 단자 구멍 지름(mm)과 단자 폭은 접속기기 제조사 치수 확인`
+    `추천 터미널: ${terminalText}`,
+    `비고: 일반적인 판넬/차단기/단자대 접속 기준의 대표 추천값`
   ].join('\n');
 
   $('cableResult').innerHTML = `
@@ -311,13 +301,10 @@ function recommendCable(){
     <div class="resultGrid">
       <div class="item"><div class="k">케이블</div><div class="v">${cableName}</div></div>
       <div class="item"><div class="k">접속 목적</div><div class="v">${useLabel}</div></div>
-      <div class="item full"><div class="k">원형 압착터미널</div><div class="v">${ringText}</div></div>
-      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${productRing}</div></div>
-      <div class="item full"><div class="k">Y형 터미널 참고</div><div class="v">${forkText}</div></div>
-      <div class="item full"><div class="k">Y형 제품 표기 참고</div><div class="v">${productFork}</div></div>
+      <div class="item full"><div class="k">추천 터미널</div><div class="v strong">${terminalText}</div></div>
       <div class="item full"><div class="k">비고</div><div class="v">${typeInfo.note}</div></div>
     </div>
-    <div class="basis">※ 구매 표기는 “전선 굵기SQ-구멍 지름mm” 기준입니다. 예: 2.5SQ-4mm는 제품 표기상 R2-4와 같은 의미로 쓰입니다. 실제 적용은 차단기·단자대·모터 단자함의 나사 지름과 단자 폭을 최종 확인하세요.</div>
+    <div class="basis">※ 혼동을 줄이기 위해 대표 규격 1개만 표시합니다. 실제 적용 시에는 접속기기 단자 구멍 지름과 단자 폭을 최종 확인하세요.</div>
     <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
   `;
   $('cableResult').classList.remove('hidden');
@@ -334,17 +321,13 @@ function recommendTerminalBlock(){
   if(!data){ toast('케이블 굵기 데이터를 찾을 수 없습니다.'); return; }
 
   const inRange = sq >= block.minSq && sq <= block.maxSq;
-  const usableRingHoles = data.ring.filter(h=>block.holes.includes(h));
-  const holes = usableRingHoles.length ? usableRingHoles : block.holes;
-  const terminalText = formatSqMm(sq, holes);
-  const products = data.productRing.filter(p=>holes.some(h=>p.endsWith('-'+h))).join(', ') || productList(data.productRing);
+  const terminalText = formatTerminal(data);
   const copyText = [
     `■ 단자대/터미널 추천`,
     `단자대: ${amp}A ${poles}P`,
     `적용 전선 범위: ${block.cableRange}`,
     `선택 케이블: ${sq}SQ`,
-    `추천 원형 압착터미널: ${terminalText}`,
-    `제품 표기 참고: ${products}`,
+    `추천 터미널: ${terminalText}`,
     `검토: ${inRange ? '선택 케이블이 단자대 적용 범위 안에 있음' : '선택 케이블이 단자대 권장 범위를 벗어남 - 단자대 정격 재검토'}`
   ].join('\n');
 
@@ -355,11 +338,10 @@ function recommendTerminalBlock(){
       <div class="item"><div class="k">적용 전선 범위</div><div class="v">${block.cableRange}</div></div>
       <div class="item"><div class="k">선택 케이블</div><div class="v">${sq}SQ</div></div>
       <div class="item"><div class="k">범위 검토</div><div class="v"><span class="badge ${inRange ? 'good' : 'warn'}">${inRange ? '권장 범위' : '재검토 필요'}</span></div></div>
-      <div class="item full"><div class="k">추천 원형 압착터미널</div><div class="v">${terminalText}</div></div>
-      <div class="item full"><div class="k">제품 표기 참고</div><div class="v">${products}</div></div>
+      <div class="item full"><div class="k">추천 터미널</div><div class="v strong">${terminalText}</div></div>
       <div class="item full"><div class="k">비고</div><div class="v">${block.note}</div></div>
     </div>
-    <div class="basis">※ 단자대 정격(A)별 적용 전선 범위는 실무 참고값입니다. 제조사별 단자 나사 지름, 단자 폭, 압착단자 외형 치수가 다를 수 있으므로 구매 전 단자대 도면을 확인하세요.</div>
+    <div class="basis">※ 혼동을 줄이기 위해 대표 규격 1개만 표시합니다. 단자대 제조사별 단자 구멍 지름, 단자 폭, 압착단자 외형 치수는 구매 전 도면으로 확인하세요.</div>
     <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
   `;
   $('terminalBlockResult').classList.remove('hidden');
