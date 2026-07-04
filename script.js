@@ -1,256 +1,234 @@
-function qs(id) {
-  return document.getElementById(id);
+const $ = (id) => document.getElementById(id);
+
+function init(){
+  initTabs();
+  initMotorSelects();
+  initConduitSelect();
+  $('inputMode').addEventListener('change', updateInputMode);
+  $('recommendBtn').addEventListener('click', recommendMotor);
+  $('resetBtn').addEventListener('click', resetMotor);
+  $('conduitType').addEventListener('change', initConduitSelect);
+  $('conduitBtn').addEventListener('click', recommendConduit);
+  updateInputMode();
 }
 
-function formatNumber(num, digits = 1) {
-  return Number(num).toLocaleString('ko-KR', { maximumFractionDigits: digits });
-}
+document.addEventListener('DOMContentLoaded', init);
 
-function populateSelects() {
-  const hpSelect = qs('hpSelect');
-  const kwSelect = qs('kwSelect');
-  hpSelect.innerHTML = '';
-  kwSelect.innerHTML = '';
-
-  MOTOR_SIZES.forEach((item) => {
-    const hpOpt = document.createElement('option');
-    hpOpt.value = String(item.hp);
-    hpOpt.textContent = `${item.hp} HP (${item.kw} kW)`;
-    hpSelect.appendChild(hpOpt);
-
-    const kwOpt = document.createElement('option');
-    kwOpt.value = String(item.kw);
-    kwOpt.textContent = `${item.kw} kW (${item.hp} HP)`;
-    kwSelect.appendChild(kwOpt);
+function initTabs(){
+  document.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      $(btn.dataset.tab).classList.add('active');
+    });
   });
-
-  hpSelect.value = '3';
-  kwSelect.value = '2.2';
-  qs('kwInput').value = '2.2';
 }
 
-function getPhaseMode() {
-  return qs('phaseMode').value;
+function initMotorSelects(){
+  $('hpSelect').innerHTML = MOTOR_SIZES.map(m=>`<option value="${m.hp}">${m.hp}HP (${m.kw}kW)</option>`).join('');
+  $('kwSelect').innerHTML = MOTOR_SIZES.map(m=>`<option value="${m.kw}">${m.kw}kW (${m.hp}HP)</option>`).join('');
+  $('hpSelect').value = '3';
+  $('kwSelect').value = '2.2';
 }
 
-function getInputMode() {
-  return qs('inputMode').value;
+function updateInputMode(){
+  const mode = $('inputMode').value;
+  $('hpWrap').classList.toggle('hidden', mode !== 'hpSelect');
+  $('kwWrap').classList.toggle('hidden', mode !== 'kwSelect');
+  $('kwDirectWrap').classList.toggle('hidden', mode !== 'kwDirect');
 }
 
-function getInstallMode() {
-  return qs('installMode').value;
+function initConduitSelect(){
+  const type = $('conduitType').value;
+  $('conduitSize').innerHTML = CONDUIT_ACCESSORIES[type].sizes.map(s=>`<option value="${s}">${type}${s}</option>`).join('');
 }
 
-function switchInputMode() {
-  const mode = getInputMode();
-  qs('hpGroup').classList.toggle('hidden', mode !== 'hp');
-  qs('kwSelectGroup').classList.toggle('hidden', mode !== 'kwSelect');
-  qs('kwCustomGroup').classList.toggle('hidden', mode !== 'kwCustom');
-}
-
-function getSelectedCapacity() {
-  const mode = getInputMode();
-
-  if (mode === 'hp') {
-    const hp = Number(qs('hpSelect').value);
-    const found = MOTOR_SIZES.find((item) => Number(item.hp) === hp);
-    return found ? { hp: found.hp, kw: found.kw, isStandard: true } : null;
+function getKw(){
+  const mode = $('inputMode').value;
+  if(mode === 'hpSelect'){
+    const hp = parseFloat($('hpSelect').value);
+    const found = MOTOR_SIZES.find(m=>m.hp === hp);
+    return {kw: found.kw, label:`${found.hp}HP (${found.kw}kW)`};
   }
-
-  if (mode === 'kwSelect') {
-    const kw = Number(qs('kwSelect').value);
-    const found = MOTOR_SIZES.find((item) => Number(item.kw) === kw);
-    return found ? { hp: found.hp, kw: found.kw, isStandard: true } : null;
+  if(mode === 'kwSelect'){
+    const kw = parseFloat($('kwSelect').value);
+    const found = MOTOR_SIZES.find(m=>m.kw === kw);
+    return {kw: found.kw, label:`${found.kw}kW (${found.hp}HP)`};
   }
-
-  const kw = Number(qs('kwInput').value);
-  if (!kw || kw <= 0) return null;
-  const hp = kw / 0.746;
-  return { hp, kw, isStandard: false };
+  const kw = parseFloat($('kwDirect').value);
+  if(!kw || kw <= 0) throw new Error('kW 직접입력 값을 입력하세요.');
+  return {kw, label:`${kw}kW 직접입력`};
 }
 
-function getPfEff() {
-  const pf = Number(qs('pfInput').value) || 0.85;
-  const eff = Number(qs('effInput').value) || 0.85;
-  return {
-    pf: Math.min(Math.max(pf, 0.5), 1),
-    eff: Math.min(Math.max(eff, 0.5), 1)
-  };
+function calcCurrent(kw, phase, pf, eff){
+  if(phase === 'three') return kw * 1000 / (Math.sqrt(3) * 380 * pf * eff);
+  return kw * 1000 / (220 * pf * eff);
 }
 
-function calculateCurrent(kw, phase, pf, eff) {
-  const standard = APP_STANDARD[phase];
-  const inputWatt = (kw * 1000) / eff;
-
-  if (phase === 'three') {
-    return inputWatt / (Math.sqrt(3) * standard.voltage * pf);
-  }
-
-  return inputWatt / (standard.voltage * pf);
+function nextStandard(arr, value){
+  return arr.find(v=>v >= value) || arr[arr.length-1];
 }
 
-function nextFromArray(array, required) {
-  return array.find((value) => value >= required) || array[array.length - 1];
+function getFrame(at){
+  return (BREAKER_FRAMES.find(f=>at <= f.max) || BREAKER_FRAMES[BREAKER_FRAMES.length-1]).frame;
 }
 
-function getFrame(at) {
-  const frame = BREAKER_FRAMES.find((item) => at <= item.max);
-  return frame ? frame.af : BREAKER_FRAMES[BREAKER_FRAMES.length - 1].af;
+function selectCable(inRating){
+  return CABLES.find(c=>c.iz >= inRating) || CABLES[CABLES.length-1];
 }
 
-function recommendBreaker(current) {
-  const requiredAt = current * 1.25;
-  const at = nextFromArray(BREAKER_AT, requiredAt);
-  const af = getFrame(at);
-  return { at, af };
+function selectConduitByCable(cable, locationKey){
+  const type = LOCATION_RULES[locationKey].conduitType;
+  // CV 4C 케이블 외경 기준의 단순 실무 매핑. 실제 관내 점유율/제조사 외경 확인 필요.
+  let size = 16;
+  if(cable.cableOD <= 14) size = 22;
+  else if(cable.cableOD <= 18) size = 28;
+  else if(cable.cableOD <= 25) size = 36;
+  else if(cable.cableOD <= 34) size = 42;
+  else size = 54;
+  return buildConduitPackage(type, size);
 }
 
-function recommendCable(at) {
-  return CABLE_TABLE.find((item) => item.iz >= at) || CABLE_TABLE[CABLE_TABLE.length - 1];
+function buildConduitPackage(type, size){
+  const def = CONDUIT_ACCESSORIES[type];
+  const f = def.fittings(size);
+  return {type, name:def.name, size, label:`${type}${size}`, hole:HOLE_CUTTERS[size] || '제조사 확인', ...f};
 }
 
-function buildConduitPackage(cable, standard, installMode) {
-  const install = INSTALL_STANDARDS[installMode];
-  const size = cable[standard.conduitSizeKey];
-  const hole = HOLE_CUTTER_TABLE[size] || { cutter: '별도 검토', note: '전선관/커넥터 실측 후 선정' };
-  const conduit = `${install.conduitType} ${size}`;
-  const accessory = install.accessoryPrefix === 'CD'
-    ? `CD ${size} 커넥터 · CD ${size} 인서트 · CD ${size} 새들`
-    : `GW ${size} 방수커넥터 · GW ${size} 로크너트/부싱 · GW ${size} 새들`;
+function recommendMotor(){
+  try{
+    const {kw,label} = getKw();
+    const phase = $('phase').value;
+    const pf = parseFloat($('pf').value) || 0.85;
+    const eff = parseFloat($('eff').value) || 0.85;
+    const locationKey = $('location').value;
+    const current = calcCurrent(kw, phase, pf, eff);
+    const designCurrent = current; // KEC IB: 회로 설계전류. 모터 특성상 별도 과부하/기동 검토 필요.
+    const targetBreaker = current * 1.25;
+    const at = nextStandard(BREAKER_RATINGS, targetBreaker);
+    const af = getFrame(at);
+    const cable = selectCable(at);
+    const conduit = selectConduitByCable(cable, locationKey);
+    const poles = phase === 'three' ? '3P' : '2P';
+    const voltage = phase === 'three' ? '삼상 380V' : '단상 220V';
+    const mccb = `MCCB ${poles} ${af}AF / ${at}AT`;
+    const elb = `ELB ${poles} ${af}AF / ${at}AT`;
+    const cableText = `CV ${phase === 'three' ? '4C' : '3C'} × ${cable.sq}SQ`;
 
-  return {
-    size,
-    conduit,
-    accessory,
-    holeCutter: hole.cutter,
-    holeNote: hole.note,
-    installLabel: install.label
-  };
-}
+    const copyText = [
+      `■ Electrical Toolbox Pro 추천`,
+      `용량: ${label}`,
+      `전원: ${voltage}`,
+      `정격전류: ${current.toFixed(1)}A`,
+      `차단기: ${mccb}`,
+      `누전차단기: ${elb}`,
+      `케이블: ${cableText}`,
+      `터미널: ${cable.terminal}`,
+      `전선관: ${conduit.label} (${conduit.name})`,
+      `커넥터: ${conduit.connector}`,
+      `인서트/부싱: ${conduit.insert}`,
+      `새들: ${conduit.saddle}`,
+      `홀커터 참고: ${conduit.hole}`
+    ].join('\n');
 
-function buildRecommendation() {
-  const capacity = getSelectedCapacity();
-  if (!capacity) {
-    showToast('kW 값을 입력하세요.');
-    return null;
-  }
-
-  const phase = getPhaseMode();
-  const standard = APP_STANDARD[phase];
-  const installMode = getInstallMode();
-  const { pf, eff } = getPfEff();
-  const current = calculateCurrent(capacity.kw, phase, pf, eff);
-  const breaker = recommendBreaker(current);
-  const cable = recommendCable(breaker.at);
-  const conduitPackage = buildConduitPackage(cable, standard, installMode);
-  const sensitivity = breaker.at >= 75 ? '100mA' : '30mA';
-
-  return {
-    ...capacity,
-    phase,
-    standard,
-    installMode,
-    pf,
-    eff,
-    current,
-    breaker,
-    cable,
-    conduitPackage,
-    sensitivity,
-    mccb: `${standard.mccbName} ${standard.poles} ${breaker.af}AF / ${breaker.at}AT`,
-    elb: `${standard.elbName} ${standard.poles} ${breaker.af}AF / ${breaker.at}AT / ${sensitivity}`,
-    cableText: `${standard.cablePrefix} × ${cable.sq}SQ`,
-    terminal: cable.terminal,
-    conduit: conduitPackage.conduit
-  };
-}
-
-function recommendMaterial() {
-  const rec = buildRecommendation();
-  if (!rec) return;
-
-  const phaseText = rec.standard.label;
-  const hpText = rec.isStandard ? `${rec.hp} HP` : `약 ${formatNumber(rec.hp, 1)} HP`;
-  const kwText = `${formatNumber(rec.kw, 2)} kW`;
-  const kecOk = rec.current <= rec.breaker.at && rec.breaker.at <= rec.cable.iz;
-
-  qs('result').classList.remove('hidden');
-  qs('motorName').textContent = `${hpText} (${kwText})`;
-  qs('standardText').textContent = `${phaseText} · ${rec.conduitPackage.installLabel} · 역률 ${rec.pf} · 효율 ${rec.eff}`;
-  qs('phaseBadge').textContent = phaseText;
-  qs('current').textContent = `${formatNumber(rec.current)} A`;
-  qs('mccb').textContent = rec.mccb;
-  qs('elb').textContent = rec.elb;
-  qs('cable').textContent = rec.cableText;
-  qs('terminal').textContent = rec.terminal;
-  qs('conduit').textContent = rec.conduit;
-  qs('accessory').textContent = rec.conduitPackage.accessory;
-  qs('holeCutter').textContent = `${rec.conduitPackage.holeCutter} (${rec.conduitPackage.holeNote})`;
-  qs('iz').textContent = `${formatNumber(rec.cable.iz)} A`;
-
-  qs('kecCheck').innerHTML = kecOk
-    ? `<strong class="ok">적합</strong> · Ib(${formatNumber(rec.current)}A) ≤ In(${rec.breaker.at}A) ≤ Iz(${formatNumber(rec.cable.iz)}A)`
-    : `<strong class="warn">확인 필요</strong> · Ib/In/Iz 관계를 현장 조건으로 재검토하세요.`;
-}
-
-async function copyResult() {
-  const rec = buildRecommendation();
-  if (!rec) return;
-
-  const hpText = rec.isStandard ? `${rec.hp}HP` : `약 ${formatNumber(rec.hp, 1)}HP`;
-  const text = `[Electrical Toolbox Pro]\n` +
-    `모터: ${hpText} (${formatNumber(rec.kw, 2)}kW), ${rec.standard.label}\n` +
-    `설치상황: ${rec.conduitPackage.installLabel}\n` +
-    `계산전류: ${formatNumber(rec.current)}A\n` +
-    `MCCB: ${rec.mccb}\n` +
-    `ELB: ${rec.elb}\n` +
-    `케이블: ${rec.cableText}\n` +
-    `터미널: ${rec.terminal}\n` +
-    `전선관: ${rec.conduit}\n` +
-    `부속자재: ${rec.conduitPackage.accessory}\n` +
-    `홀커터: ${rec.conduitPackage.holeCutter} (${rec.conduitPackage.holeNote})\n` +
-    `※ 간편 추천값이며, 포설조건/온도/집합보정/전압강하/차단용량/명판전류/제조사별 커넥터 치수는 현장 확인 필요`;
-
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast('결과를 복사했습니다.');
-  } catch (e) {
-    const area = qs('copyArea');
-    area.value = text;
-    area.classList.remove('hidden');
-    area.select();
-    showToast('복사창에서 직접 복사하세요.');
+    $('motorResult').innerHTML = `
+      <h3>추천 결과</h3>
+      <div class="resultGrid">
+        <div class="item"><div class="k">모터 용량</div><div class="v">${label}</div></div>
+        <div class="item"><div class="k">전원</div><div class="v">${voltage}</div></div>
+        <div class="item"><div class="k">계산 전류</div><div class="v">${current.toFixed(1)} A</div></div>
+        <div class="item"><div class="k">설치 상황</div><div class="v">${LOCATION_RULES[locationKey].label}</div></div>
+        <div class="item"><div class="k">차단기</div><div class="v">${mccb}</div></div>
+        <div class="item"><div class="k">누전차단기</div><div class="v">${elb}</div></div>
+        <div class="item"><div class="k">케이블</div><div class="v">${cableText}</div></div>
+        <div class="item"><div class="k">터미널</div><div class="v">${cable.terminal}</div></div>
+        <div class="item"><div class="k">전선관</div><div class="v">${conduit.label} · ${conduit.name}</div></div>
+        <div class="item"><div class="k">홀커터 참고</div><div class="v">${conduit.hole}</div></div>
+        <div class="item"><div class="k">커넥터</div><div class="v">${conduit.connector}</div></div>
+        <div class="item"><div class="k">인서트/부싱</div><div class="v">${conduit.insert}</div></div>
+        <div class="item"><div class="k">새들</div><div class="v">${conduit.saddle}</div></div>
+        <div class="item"><div class="k">KEC 간편 검토</div><div class="v"><span class="badge good">IB ≤ In ≤ Iz</span></div></div>
+        <div class="item full"><div class="k">선정 근거</div><div class="v kv">IB=${designCurrent.toFixed(1)}A, In=${at}A, Iz=${cable.iz}A\n간편 검토: ${designCurrent.toFixed(1)}A ≤ ${at}A ≤ ${cable.iz}A</div></div>
+      </div>
+      <div class="basis">※ 차단기는 운전전류×125% 이상에서 표준 정격을 선택했습니다. 모터 기동전류, 기동방식, EOCR/과부하계전기, 전압강하, 차단용량은 현장 조건에 따라 별도 검토하세요.</div>
+      <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
+    `;
+    $('motorResult').classList.remove('hidden');
+    bindCopyButtons();
+  }catch(e){
+    $('motorResult').innerHTML = `<div class="item error">${e.message}</div>`;
+    $('motorResult').classList.remove('hidden');
   }
 }
 
-function showToast(message) {
-  const toast = qs('toast');
-  toast.textContent = message;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 1800);
+function recommendConduit(){
+  const type = $('conduitType').value;
+  const size = parseInt($('conduitSize').value,10);
+  const p = buildConduitPackage(type, size);
+  const copyText = [
+    `■ 전선관 부속 추천`,
+    `전선관: ${p.label} (${p.name})`,
+    `커넥터: ${p.connector}`,
+    `인서트/부싱: ${p.insert}`,
+    `새들: ${p.saddle}`,
+    `홀커터 참고: ${p.hole}`,
+    `비고: ${p.note}`
+  ].join('\n');
+
+  $('conduitResult').innerHTML = `
+    <h3>전선관 부속 추천</h3>
+    <div class="resultGrid">
+      <div class="item"><div class="k">전선관</div><div class="v">${p.label}</div></div>
+      <div class="item"><div class="k">종류</div><div class="v">${p.name}</div></div>
+      <div class="item"><div class="k">커넥터</div><div class="v">${p.connector}</div></div>
+      <div class="item"><div class="k">인서트/부싱</div><div class="v">${p.insert}</div></div>
+      <div class="item"><div class="k">새들</div><div class="v">${p.saddle}</div></div>
+      <div class="item"><div class="k">홀커터 참고</div><div class="v">${p.hole}</div></div>
+      <div class="item full"><div class="k">비고</div><div class="v">${p.note}</div></div>
+    </div>
+    <div class="basis">※ 홀커터 규격은 현장 참고용입니다. 박스 노크아웃, 커넥터 제조사, 판넬 재질과 실제 외경을 확인하세요.</div>
+    <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
+  `;
+  $('conduitResult').classList.remove('hidden');
+  bindCopyButtons();
 }
 
-function bindEvents() {
-  qs('inputMode').addEventListener('change', () => {
-    switchInputMode();
-    recommendMaterial();
+function resetMotor(){
+  $('phase').value='three';
+  $('inputMode').value='hpSelect';
+  $('hpSelect').value='3';
+  $('kwSelect').value='2.2';
+  $('kwDirect').value='';
+  $('location').value='indoorHidden';
+  $('pf').value='0.85';
+  $('eff').value='0.85';
+  updateInputMode();
+  $('motorResult').classList.add('hidden');
+}
+
+function bindCopyButtons(){
+  document.querySelectorAll('.copyBtn').forEach(btn=>{
+    btn.onclick = async () => {
+      const text = btn.dataset.copy.replaceAll('&quot;','"');
+      try{
+        await navigator.clipboard.writeText(text);
+        toast('복사되었습니다');
+      }catch(e){
+        toast('복사 실패: 브라우저 권한 확인');
+      }
+    };
   });
-
-  ['phaseMode', 'hpSelect', 'kwSelect', 'kwInput', 'pfInput', 'effInput', 'installMode'].forEach((id) => {
-    const el = qs(id);
-    el.addEventListener('input', recommendMaterial);
-    el.addEventListener('change', recommendMaterial);
-  });
-
-  qs('recommendBtn').addEventListener('click', recommendMaterial);
-  qs('copyBtn').addEventListener('click', copyResult);
 }
 
-function boot() {
-  populateSelects();
-  bindEvents();
-  switchInputMode();
-  recommendMaterial();
+function escapeHtml(str){
+  return str.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+function toast(msg){
+  const t = document.createElement('div');
+  t.className='toast';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),1800);
+}

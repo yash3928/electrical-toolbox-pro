@@ -1,122 +1,116 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Electrical Toolbox Pro</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Electrical Toolbox Pro - KEC Edition</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="container">
-    <section class="hero">
-      <h1>⚡ Electrical Toolbox Pro</h1>
-      <p>전기 실무 자재 추천기 · Ver 1.3</p>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">KEC Edition · Ver 2.0</p>
+        <h1>⚡ Electrical Toolbox Pro</h1>
+        <p class="sub">전기 실무 자재 추천기</p>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="메뉴">
+      <button class="tab active" data-tab="motor">모터 자재 선정</button>
+      <button class="tab" data-tab="conduit">전선관 부속 선정</button>
+    </nav>
+
+    <section id="motor" class="panel active">
+      <div class="card">
+        <h2>모터 자재 선정</h2>
+        <p class="help">단상/삼상, HP/kW 입력값을 기준으로 차단기·케이블·터미널·전선관을 간편 추천합니다.</p>
+
+        <div class="grid">
+          <label>전원 방식
+            <select id="phase">
+              <option value="three">삼상 380V</option>
+              <option value="single">단상 220V</option>
+            </select>
+          </label>
+
+          <label>입력 방식
+            <select id="inputMode">
+              <option value="hpSelect">HP 선택</option>
+              <option value="kwSelect">kW 선택</option>
+              <option value="kwDirect">kW 직접입력</option>
+            </select>
+          </label>
+
+          <label id="hpWrap">모터 용량 HP
+            <select id="hpSelect"></select>
+          </label>
+
+          <label id="kwWrap" class="hidden">모터 용량 kW
+            <select id="kwSelect"></select>
+          </label>
+
+          <label id="kwDirectWrap" class="hidden">kW 직접입력
+            <input id="kwDirect" type="number" step="0.01" min="0" placeholder="예: 2.2" />
+          </label>
+
+          <label>설치 상황
+            <select id="location">
+              <option value="indoorHidden">실내 매입/은폐</option>
+              <option value="indoorExposed">실내 노출/기계 주변</option>
+              <option value="outdoorWet">옥외/습기 우려</option>
+            </select>
+          </label>
+
+          <label>역률 PF <span class="small">기본 0.85</span>
+            <input id="pf" type="number" step="0.01" min="0.1" max="1" value="0.85" />
+          </label>
+
+          <label>효율 η <span class="small">기본 0.85</span>
+            <input id="eff" type="number" step="0.01" min="0.1" max="1" value="0.85" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="recommendBtn" class="primary">자재 추천</button>
+          <button id="resetBtn" class="secondary">초기화</button>
+        </div>
+      </div>
+
+      <div id="motorResult" class="result hidden"></div>
     </section>
 
-    <section class="card">
-      <h2>모터 자재 추천</h2>
-      <div class="grid">
-        <div class="full">
-          <label class="title" for="phaseMode">전원 구분</label>
-          <select id="phaseMode">
-            <option value="three">삼상 380V</option>
-            <option value="single">단상 220V</option>
-          </select>
+    <section id="conduit" class="panel">
+      <div class="card">
+        <h2>전선관 부속 선정</h2>
+        <p class="help">전선관 종류와 규격을 입력하면 커넥터·인서트·새들·홀커터 참고 규격을 표시합니다.</p>
+
+        <div class="grid">
+          <label>전선관 종류
+            <select id="conduitType">
+              <option value="CD">CD관</option>
+              <option value="GW">GW 방수후렉시블관</option>
+            </select>
+          </label>
+
+          <label>전선관 규격
+            <select id="conduitSize"></select>
+          </label>
         </div>
 
-        <div class="full">
-          <label class="title" for="installMode">설치상황</label>
-          <select id="installMode">
-            <option value="indoor">실내 매입/은폐 → CD관</option>
-            <option value="exposed">실내 노출/기계 주변 → GW 방수후렉시블관</option>
-            <option value="outdoor">옥외/습기 우려 → GW 방수후렉시블관</option>
-          </select>
-        </div>
-
-        <div class="full">
-          <label class="title" for="inputMode">입력 방식</label>
-          <select id="inputMode">
-            <option value="hp">HP 선택</option>
-            <option value="kwSelect">kW 선택</option>
-            <option value="kwCustom">kW 직접입력</option>
-          </select>
-        </div>
-
-        <div id="hpGroup" class="full">
-          <label class="title" for="hpSelect">모터 용량(HP)</label>
-          <select id="hpSelect"></select>
-        </div>
-
-        <div id="kwSelectGroup" class="full hidden">
-          <label class="title" for="kwSelect">모터 용량(kW)</label>
-          <select id="kwSelect"></select>
-        </div>
-
-        <div id="kwCustomGroup" class="full hidden">
-          <label class="title" for="kwInput">모터 용량(kW) 직접입력</label>
-          <input id="kwInput" type="number" inputmode="decimal" min="0.1" step="0.1" placeholder="예: 2.2" />
-        </div>
-
-        <div>
-          <label class="title" for="pfInput">역률</label>
-          <input id="pfInput" type="number" inputmode="decimal" min="0.5" max="1" step="0.01" value="0.85" />
-        </div>
-
-        <div>
-          <label class="title" for="effInput">효율</label>
-          <input id="effInput" type="number" inputmode="decimal" min="0.5" max="1" step="0.01" value="0.85" />
-        </div>
-
-        <div class="full small-note">
-          명판 전류가 있으면 명판 전류를 우선 기준으로 삼으세요. 본 추천은 간편 자재 산정용입니다.
-        </div>
-
-        <div class="full">
-          <button id="recommendBtn" type="button">🔍 자재 추천</button>
+        <div class="actions">
+          <button id="conduitBtn" class="primary">부속 추천</button>
         </div>
       </div>
+
+      <div id="conduitResult" class="result hidden"></div>
     </section>
 
-    <section id="result" class="card hidden">
-      <div class="result-head">
-        <div>
-          <h2 id="motorName">-</h2>
-          <p id="standardText" class="muted-text">-</p>
-        </div>
-        <span id="phaseBadge" class="badge">-</span>
-      </div>
-
-      <div class="result-list">
-        <div class="item"><div class="name">계산전류</div><div id="current" class="value">-</div></div>
-        <div class="item"><div class="name">차단기</div><div id="mccb" class="value">-</div></div>
-        <div class="item"><div class="name">누전차단기</div><div id="elb" class="value">-</div></div>
-        <div class="item"><div class="name">케이블</div><div id="cable" class="value">-</div></div>
-        <div class="item"><div class="name">터미널</div><div id="terminal" class="value">-</div></div>
-        <div class="item"><div class="name">전선관</div><div id="conduit" class="value">-</div></div>
-        <div class="item"><div class="name">전선관 부속</div><div id="accessory" class="value">-</div></div>
-        <div class="item"><div class="name">홀커터</div><div id="holeCutter" class="value">-</div></div>
-        <div class="item"><div class="name">전선 허용전류</div><div id="iz" class="value">-</div></div>
-      </div>
-
-      <div class="kec">
-        <div><strong>KEC 간편 검토</strong></div>
-        <div id="kecCheck">-</div>
-      </div>
-
-      <div class="notice">
-        ※ 실제 적용 전 포설방법, 주위온도, 집합보정, 전압강하, 차단용량, 접지, 제조사 명판전류, 기동방식, 전선관 충전율, 커넥터 실제 외경 및 사내 표준을 반드시 확인하세요.
-      </div>
-
-      <div class="button-row">
-        <button id="copyBtn" type="button" class="secondary">📋 결과 복사하기</button>
-      </div>
-      <textarea id="copyArea" class="hidden" readonly></textarea>
-    </section>
-
-    <p class="footer">Electrical Toolbox Pro · Ver 1.3 · KEC 원칙 기반 간편 추천</p>
+    <footer class="notice">
+      <strong>주의</strong> 본 프로그램은 KEC 원칙 기반의 실무 보조도구입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
+    </footer>
   </main>
 
-  <div id="toast" class="toast"></div>
   <script src="database.js"></script>
   <script src="script.js"></script>
 </body>
