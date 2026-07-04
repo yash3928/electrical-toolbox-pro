@@ -10,17 +10,41 @@
   <main class="container">
     <section class="hero">
       <h1>⚡ Electrical Toolbox Pro</h1>
-      <p>전기 실무 자재 추천기 · Ver 1.0</p>
+      <p>전기 실무 자재 추천기 · Ver 1.2</p>
+    </section>
+
+    <section class="card info-card">
+      <strong>PF관 참고</strong>
+      <p>PF관은 합성수지제 가요전선관 계열로 볼 수 있지만, 이번 버전에서는 현장 적용을 단순화하기 위해 기본 추천에서 제외했습니다. 실내 매입/은폐는 CD관, 노출·기계 주변·옥외/습기 우려 구간은 GW 방수후렉시블관으로 추천합니다.</p>
     </section>
 
     <section class="card">
       <h2>모터 자재 추천</h2>
+
       <div class="grid">
+        <div class="full">
+          <label class="title">전원 구분</label>
+          <div class="radio-row">
+            <label class="radio-pill"><input type="radio" name="phaseMode" value="three" checked /> 삼상 380V</label>
+            <label class="radio-pill"><input type="radio" name="phaseMode" value="single" /> 단상 220V</label>
+          </div>
+        </div>
+
+        <div class="full">
+          <label class="title" for="installMode">설치상황</label>
+          <select id="installMode">
+            <option value="indoor">실내 매입/은폐 → CD관</option>
+            <option value="exposed">실내 노출/기계 주변 → GW 방수후렉시블관</option>
+            <option value="outdoor">옥외/습기 우려 → GW 방수후렉시블관</option>
+          </select>
+        </div>
+
         <div class="full">
           <label class="title">입력 방식</label>
           <div class="radio-row">
-            <label class="radio-pill"><input type="radio" name="inputMode" value="hp" checked /> HP 기준</label>
-            <label class="radio-pill"><input type="radio" name="inputMode" value="kw" /> kW 기준</label>
+            <label class="radio-pill"><input type="radio" name="inputMode" value="hp" checked /> HP 선택</label>
+            <label class="radio-pill"><input type="radio" name="inputMode" value="kwSelect" /> kW 선택</label>
+            <label class="radio-pill"><input type="radio" name="inputMode" value="kwCustom" /> kW 직접입력</label>
           </div>
         </div>
 
@@ -29,16 +53,28 @@
           <select id="hpSelect"></select>
         </div>
 
-        <div id="kwGroup" class="hidden">
+        <div id="kwSelectGroup" class="hidden">
           <label class="title" for="kwSelect">모터 용량(kW)</label>
           <select id="kwSelect"></select>
         </div>
 
+        <div id="kwCustomGroup" class="hidden">
+          <label class="title" for="kwInput">모터 용량(kW)</label>
+          <input id="kwInput" type="number" min="0.1" step="0.1" placeholder="예: 2.2" />
+        </div>
+
         <div>
-          <label class="title">적용 기준</label>
-          <select disabled>
-            <option>3상 380V / 직입기동 / CV 4C</option>
-          </select>
+          <label class="title" for="pfInput">역률</label>
+          <input id="pfInput" type="number" min="0.5" max="1" step="0.01" value="0.85" />
+        </div>
+
+        <div>
+          <label class="title" for="effInput">효율</label>
+          <input id="effInput" type="number" min="0.5" max="1" step="0.01" value="0.85" />
+        </div>
+
+        <div class="full small-note">
+          기본값은 일반 모터 간편 산정용입니다. 명판 전류가 있으면 명판 전류를 우선 기준으로 삼는 것이 좋습니다.
         </div>
 
         <div class="full">
@@ -51,18 +87,20 @@
       <div class="result-head">
         <div>
           <h2 id="motorName">-</h2>
-          <p style="margin:6px 0 0;color:#6b7280;">일반 산업현장 간편 추천값</p>
+          <p id="standardText" class="muted-text">-</p>
         </div>
-        <span class="badge">3상 380V</span>
+        <span id="phaseBadge" class="badge">-</span>
       </div>
 
       <div class="result-list">
-        <div class="item"><div class="name">정격전류</div><div id="current" class="value">-</div></div>
+        <div class="item"><div class="name">계산전류</div><div id="current" class="value">-</div></div>
         <div class="item"><div class="name">차단기</div><div id="mccb" class="value">-</div></div>
         <div class="item"><div class="name">누전차단기</div><div id="elb" class="value">-</div></div>
         <div class="item"><div class="name">케이블</div><div id="cable" class="value">-</div></div>
         <div class="item"><div class="name">터미널</div><div id="terminal" class="value">-</div></div>
         <div class="item"><div class="name">전선관</div><div id="conduit" class="value">-</div></div>
+        <div class="item"><div class="name">전선관 부속</div><div id="accessory" class="value">-</div></div>
+        <div class="item"><div class="name">홀커터</div><div id="holeCutter" class="value">-</div></div>
         <div class="item"><div class="name">전선 허용전류</div><div id="iz" class="value">-</div></div>
       </div>
 
@@ -72,16 +110,16 @@
       </div>
 
       <div class="notice">
-        ※ 본 추천은 3상 380V 모터의 간편 산정용입니다. 실제 적용 전 포설방법, 주위온도, 집합보정, 전압강하, 차단용량, 접지, 제조사 정격 및 사내 표준을 반드시 확인하세요.
+        ※ 본 추천은 간편 산정용입니다. 실제 적용 전 포설방법, 주위온도, 집합보정, 전압강하, 차단용량, 접지, 제조사 명판전류, 기동방식, 전선관 충전율, 커넥터 실제 외경 및 사내 표준을 반드시 확인하세요.
       </div>
 
-      <div style="margin-top:14px;">
+      <div class="button-row">
         <button id="copyBtn" class="secondary">📋 결과 복사하기</button>
-        <textarea id="copyArea" class="hidden" readonly></textarea>
       </div>
+      <textarea id="copyArea" class="hidden" readonly></textarea>
     </section>
 
-    <p class="footer">Electrical Toolbox Pro · Ver 1.0 · KEC 원칙 기반 간편 추천</p>
+    <p class="footer">Electrical Toolbox Pro · Ver 1.2 · KEC 원칙 기반 간편 추천</p>
   </main>
 
   <div id="toast" class="toast"></div>
