@@ -24,6 +24,7 @@ function init(){
   $('touAutoMode')?.addEventListener('change', updateTariffInputs);
   $('energyBtn').addEventListener('click', calculateEnergy);
   $('energyResetBtn').addEventListener('click', resetEnergy);
+  initIssues();
   updateInputMode();
   updateTariffInputs();
 }
@@ -802,3 +803,190 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   updateTariffInputs();
 });
+
+/* =========================
+   기흥레스피아 전기설비 특이사항
+   - Google Apps Script URL이 있으면 공유 저장
+   - URL이 없으면 현재 기기(localStorage)에 임시 저장
+========================= */
+const ISSUE_LOCAL_KEY = 'etp_giheung_issues_v1';
+const ISSUE_API_KEY = 'etp_issue_api_url';
+let issueJsonpSeq = 0;
+
+function initIssues(){
+  if(!$('issueList')) return;
+  const savedUrl = localStorage.getItem(ISSUE_API_KEY) || '';
+  $('issueApiUrl').value = savedUrl;
+  $('issueSaveApiBtn').addEventListener('click', saveIssueApiUrl);
+  $('issueAddBtn').addEventListener('click', addIssue);
+  $('issueReloadBtn').addEventListener('click', loadIssues);
+  loadIssues();
+}
+
+function saveIssueApiUrl(){
+  const url = ($('issueApiUrl').value || '').trim();
+  localStorage.setItem(ISSUE_API_KEY, url);
+  toast(url ? 'Google Sheets 연동 URL 저장 완료' : '연동 URL을 비웠습니다. 현재 기기 저장 모드로 전환됩니다.');
+  loadIssues();
+}
+
+function getIssueApiUrl(){
+  return (localStorage.getItem(ISSUE_API_KEY) || $('issueApiUrl')?.value || '').trim();
+}
+
+function issueJsonp(params){
+  const base = getIssueApiUrl();
+  if(!base) return Promise.reject(new Error('NO_API_URL'));
+  return new Promise((resolve, reject)=>{
+    const callback = `__etpIssueCallback_${Date.now()}_${issueJsonpSeq++}`;
+    const qs = new URLSearchParams({...params, callback, _: Date.now()});
+    const script = document.createElement('script');
+    const sep = base.includes('?') ? '&' : '?';
+    script.src = base + sep + qs.toString();
+    const timer = setTimeout(()=>{
+      cleanup();
+      reject(new Error('Google Sheets 응답 시간 초과'));
+    }, 12000);
+    function cleanup(){
+      clearTimeout(timer);
+      script.remove();
+      try{ delete window[callback]; }catch(e){ window[callback] = undefined; }
+    }
+    window[callback] = (data)=>{
+      cleanup();
+      if(data && data.ok) resolve(data);
+      else reject(new Error(data?.error || 'Google Sheets 처리 실패'));
+    };
+    script.onerror = ()=>{
+      cleanup();
+      reject(new Error('Google Apps Script URL을 확인하세요.'));
+    };
+    document.body.appendChild(script);
+  });
+}
+
+function getLocalIssues(){
+  try{ return JSON.parse(localStorage.getItem(ISSUE_LOCAL_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+
+function setLocalIssues(list){
+  localStorage.setItem(ISSUE_LOCAL_KEY, JSON.stringify(list));
+}
+
+function issuePayloadFromForm(){
+  const equipment = ($('issueEquipment').value || '').trim();
+  const location = ($('issueLocation').value || '').trim();
+  const reporter = ($('issueReporter').value || '').trim();
+  const status = $('issueStatus').value;
+  const content = ($('issueContent').value || '').trim();
+  const action = ($('issueAction').value || '').trim();
+  if(!equipment) throw new Error('설비명을 입력하세요.');
+  if(!content) throw new Error('특이사항을 입력하세요.');
+  return {equipment, location, reporter, status, content, action};
+}
+
+async function addIssue(){
+  try{
+    const item = issuePayloadFromForm();
+    if(getIssueApiUrl()){
+      await issueJsonp({action:'add', ...item});
+    }else{
+      const list = getLocalIssues();
+      list.unshift({id:String(Date.now()), createdAt:new Date().toLocaleString('ko-KR'), updatedAt:'', ...item});
+      setLocalIssues(list);
+    }
+    ['issueEquipment','issueLocation','issueContent','issueAction'].forEach(id=>$(id).value='');
+    $('issueStatus').value = '미조치';
+    toast('특이사항 등록 완료');
+    loadIssues();
+  }catch(e){ toast(e.message); }
+}
+
+async function loadIssues(){
+  if(!$('issueList')) return;
+  $('issueList').innerHTML = '<div class="muted">불러오는 중...</div>';
+  try{
+    let list;
+    if(getIssueApiUrl()){
+      const data = await issueJsonp({action:'list'});
+      list = data.items || [];
+    }else{
+      list = getLocalIssues();
+    }
+    renderIssues(list);
+  }catch(e){
+    $('issueList').innerHTML = `<div class="item full error">${escapeHtml(e.message)}<br>연동 URL이 불안정하면 URL을 비우고 현재 기기 저장 모드로 테스트하세요.</div>`;
+  }
+}
+
+function statusClass(status){
+  if(status === '조치완료') return 'done';
+  if(status === '조치중') return 'working';
+  return 'open';
+}
+
+function renderIssues(list){
+  const active = list.filter(x=>x.status !== '조치완료');
+  const counts = {
+    total:list.length,
+    open:list.filter(x=>x.status === '미조치').length,
+    working:list.filter(x=>x.status === '조치중').length,
+    done:list.filter(x=>x.status === '조치완료').length
+  };
+  $('issueSummary').innerHTML = `
+    <div class="issueStat"><span>전체</span><b>${counts.total}</b></div>
+    <div class="issueStat"><span>미조치</span><b>${counts.open}</b></div>
+    <div class="issueStat"><span>조치중</span><b>${counts.working}</b></div>
+    <div class="issueStat"><span>완료</span><b>${counts.done}</b></div>
+  `;
+  const show = active.length ? active : list;
+  if(!show.length){
+    $('issueList').innerHTML = '<div class="muted">등록된 특이사항이 없습니다.</div>';
+    return;
+  }
+  $('issueList').innerHTML = show.map(item=>`
+    <article class="issueCard">
+      <div class="issueTop">
+        <div>
+          <div class="issueTitle">${escapeHtml(item.equipment || '-')}</div>
+          <div class="issueMeta">${escapeHtml(item.location || '위치 미입력')} · 등록자 ${escapeHtml(item.reporter || '-')} · ${escapeHtml(item.createdAt || '')}</div>
+        </div>
+        <span class="issueBadge ${statusClass(item.status)}">${escapeHtml(item.status || '미조치')}</span>
+      </div>
+      <div class="issueContent"><b>특이사항</b><br>${escapeHtml(item.content || '')}</div>
+      ${item.action ? `<div class="issueContent"><b>조치내용</b><br>${escapeHtml(item.action || '')}</div>` : ''}
+      <div class="issueActions">
+        <button class="issueWorking" onclick="updateIssueStatus('${escapeHtml(String(item.id))}','조치중')">조치중</button>
+        <button class="issueDone" onclick="updateIssueStatus('${escapeHtml(String(item.id))}','조치완료')">조치완료</button>
+        <button class="issueDelete" onclick="deleteIssue('${escapeHtml(String(item.id))}')">삭제</button>
+      </div>
+    </article>
+  `).join('');
+}
+
+async function updateIssueStatus(id, status){
+  try{
+    if(getIssueApiUrl()){
+      await issueJsonp({action:'status', id, status});
+    }else{
+      const list = getLocalIssues().map(x=>x.id===id ? {...x, status, updatedAt:new Date().toLocaleString('ko-KR')} : x);
+      setLocalIssues(list);
+    }
+    toast('상태 변경 완료');
+    loadIssues();
+  }catch(e){ toast(e.message); }
+}
+
+async function deleteIssue(id){
+  if(!confirm('이 특이사항을 삭제할까요?')) return;
+  try{
+    if(getIssueApiUrl()){
+      await issueJsonp({action:'delete', id});
+    }else{
+      setLocalIssues(getLocalIssues().filter(x=>x.id!==id));
+    }
+    toast('삭제 완료');
+    loadIssues();
+  }catch(e){ toast(e.message); }
+}

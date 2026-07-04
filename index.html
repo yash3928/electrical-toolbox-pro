@@ -4,15 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Electrical Toolbox Pro - KEC Edition</title>
-  <link rel="stylesheet" href="style.css?v=3.2" />
+  <link rel="stylesheet" href="style.css?v=4.0" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 3.3</p>
+        <p class="eyebrow">KEC Edition · Ver 4.0</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
-        <p class="sub">전기 실무 자재 추천기</p>
+        <p class="sub">KEC 기반 전기 실무 보조 툴</p>
       </div>
     </header>
 
@@ -22,6 +22,7 @@
       <button class="tab" data-tab="cable">케이블 자재 선정</button>
       <button class="tab" data-tab="terminalBlock">단자대·터미널 선정</button>
       <button class="tab" data-tab="energy">전력·요금·절감 계산</button>
+      <button class="tab" data-tab="issues">기흥레스피아 전기설비 특이사항</button>
     </nav>
 
     <section id="motor" class="panel active">
@@ -322,12 +323,60 @@
       <div id="energyResult" class="result hidden"></div>
     </section>
 
+
+    <section id="issues" class="panel">
+      <div class="card">
+        <h2>기흥레스피아 전기설비 특이사항</h2>
+        <p class="help">여러 사람이 같은 내용을 보려면 Google Apps Script 웹앱 URL을 입력해 Google Sheets와 연동하세요. URL이 없으면 현재 기기 임시 저장 모드로 동작합니다.</p>
+
+        <div class="grid">
+          <label class="full">Google Apps Script 웹앱 URL
+            <input id="issueApiUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" />
+          </label>
+          <label>설비명
+            <input id="issueEquipment" type="text" placeholder="예: 유입펌프 1호기" />
+          </label>
+          <label>위치
+            <input id="issueLocation" type="text" placeholder="예: MCC-2, 현장 LOP" />
+          </label>
+          <label>등록자
+            <input id="issueReporter" type="text" placeholder="예: 홍길동" />
+          </label>
+          <label>상태
+            <select id="issueStatus">
+              <option value="미조치">미조치</option>
+              <option value="조치중">조치중</option>
+              <option value="조치완료">조치완료</option>
+            </select>
+          </label>
+          <label class="full">특이사항
+            <textarea id="issueContent" rows="4" placeholder="증상, 발생 조건, 임시조치 사항 등을 입력하세요."></textarea>
+          </label>
+          <label class="full">조치내용
+            <textarea id="issueAction" rows="3" placeholder="조치 내용 또는 예정 사항을 입력하세요."></textarea>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="issueSaveApiBtn" class="secondary">연동 URL 저장</button>
+          <button id="issueAddBtn" class="primary">특이사항 등록</button>
+          <button id="issueReloadBtn" class="secondary">목록 새로고침</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>특이사항 목록</h2>
+        <div id="issueSummary" class="issueSummary">-</div>
+        <div id="issueList" class="issueList"></div>
+      </div>
+    </section>
+
     <footer class="notice">
-      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 3.3는 실제 프로젝트 ZIP 기준으로 정리한 안정화 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
+      <strong>주의</strong> 본 프로그램은 KEC 과부하 보호 협조 원칙 및 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 4.0은 Google Sheets 연동형 특이사항 관리 기능을 추가한 버전입니다. 실제 시공 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류/차단용량, 제조사 치수, 사내 표준을 최종 확인하세요.
     </footer>
   </main>
 
-  <script src="database.js?v=3.3"></script>
-  <script src="script.js?v=3.3"></script>
+  <script src="database.js?v=4.0"></script>
+  <script src="script.js?v=4.0"></script>
 </body>
 </html>
