@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 2.8</p>
+        <p class="eyebrow">KEC Edition · Ver 2.9</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">전기 실무 자재 추천기</p>
       </div>
@@ -183,65 +183,51 @@
 
     <section id="energy" class="panel">
       <div class="card">
-        <h2>전력량 · 전기요금 · 절감 계산</h2>
-        <p class="help">전력절감 계획서 작성에 필요한 kWh, 절감률, 예상 요금, 투자회수기간을 계산합니다. 계약종별 선택 시 2026년 6월 1일 시행 한전 요금표의 일반용·산업용 주요 단가를 자동 입력합니다. 실제 청구액은 한전 고지서의 계약종별·계절·시간대별 사용량을 기준으로 최종 확인하세요.</p>
+        <h2>전력량 · 한전요금 · 절감계획 간편 계산</h2>
+        <p class="help">사용자는 핵심값만 입력하고, 계약종별 단가·계절·시간대별 사용량·부가세·전력산업기반기금은 자동 계산해 표기합니다.</p>
+
+        <input type="hidden" id="energyMode" value="saving" />
+        <input type="hidden" id="tariffLoadMode" value="auto" />
+        <input type="hidden" id="tariffSeason" value="summer" />
+        <input type="hidden" id="energyRate" />
+        <input type="hidden" id="basicRate" />
+        <input type="hidden" id="climateRate" value="9" />
+        <input type="hidden" id="fuelRate" value="5" />
+        <input type="hidden" id="lightKwh" />
+        <input type="hidden" id="midKwh" />
+        <input type="hidden" id="peakKwh" />
+        <input type="hidden" id="lightHours" />
+        <input type="hidden" id="midHours" />
+        <input type="hidden" id="peakHours" />
+        <select id="touAutoMode" class="hidden"><option value="autoDay">주간운전</option></select>
 
         <div class="grid">
-          <label>계산 유형
-            <select id="energyMode">
-              <option value="usage">전력량 계산</option>
-              <option value="bill">한전 전기요금 간편 계산</option>
-              <option value="saving">전력절감 계획 계산</option>
-            </select>
-          </label>
-
           <label>계약종별
             <select id="tariffType"></select>
           </label>
 
-          <label>계절
-            <select id="tariffSeason">
-              <option value="summer">여름철(6~8월)</option>
-              <option value="springAutumn">봄·가을철(3~5월, 9~10월)</option>
-              <option value="winter">겨울철(11~2월)</option>
+          <label>검침월
+            <select id="tariffMonth">
+              <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option>
+              <option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option>
+              <option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
             </select>
           </label>
 
-          <label>요금 방식
-            <select id="tariffLoadMode">
-              <option value="flat">일반 단가</option>
-              <option value="tou">시간대별 단가</option>
+          <label>계절 자동판정
+            <input id="seasonView" type="text" readonly />
+          </label>
+
+          <label>운전패턴
+            <select id="operationPattern">
+              <option value="day">주간운전 08시 시작</option>
+              <option value="night">야간운전 22시 시작</option>
+              <option value="continuous">24시간 연속운전</option>
             </select>
           </label>
 
-          <label id="touAutoModeWrap">시간대별 사용량 산정
-            <select id="touAutoMode">
-              <option value="auto24">24시간 연속운전 자동산정</option>
-              <option value="autoDay">주간운전 08~18시 자동산정</option>
-              <option value="autoNight">야간운전 22~08시 자동산정</option>
-              <option value="customHours">시간대별 운전시간 직접입력</option>
-              <option value="manualKwh">사용량 kWh 직접입력</option>
-            </select>
-          </label>
-
-          <label id="lightHoursWrap">경부하 운전시간(h/일)
-            <input id="lightHours" type="number" step="0.1" min="0" value="10" />
-          </label>
-
-          <label id="midHoursWrap">중간부하 운전시간(h/일)
-            <input id="midHours" type="number" step="0.1" min="0" value="8" />
-          </label>
-
-          <label id="peakHoursWrap">최대부하 운전시간(h/일)
-            <input id="peakHours" type="number" step="0.1" min="0" value="6" />
-          </label>
-
-          <label id="touTimeInfoWrap" class="full">사용 시간대 안내
-            <textarea id="touTimeInfo" readonly rows="4"></textarea>
-          </label>
-
-          <label>부하용량 또는 절감전력(kW)
-            <input id="energyKw" type="number" step="0.001" min="0" placeholder="예: 9.792" />
+          <label>부하용량(kW)
+            <input id="energyKw" type="number" step="0.001" min="0" placeholder="예: 30" />
           </label>
 
           <label>일 운전시간(h/일)
@@ -252,53 +238,29 @@
             <input id="energyDays" type="number" step="1" min="0" value="30" />
           </label>
 
-          <label>전력량요금 단가(원/kWh)
-            <input id="energyRate" type="number" step="0.1" min="0" placeholder="계약종별 선택 시 자동" />
+          <label>계약전력(kW)
+            <input id="contractKw" type="number" step="0.1" min="0" placeholder="예: 300" />
           </label>
 
-          <label>기본요금 단가(원/kW) <span class="small">자동입력/수정가능</span>
-            <input id="basicRate" type="number" step="1" min="0" placeholder="계약종별 선택 시 자동" />
-          </label>
-
-          <label>기후환경요금 단가(원/kWh) <span class="small">고지서 기준 입력</span>
-            <input id="climateRate" type="number" step="0.1" min="0" value="0" />
-          </label>
-
-          <label>연료비조정단가(원/kWh) <span class="small">±5원/kWh 범위</span>
-            <input id="fuelRate" type="number" step="0.1" value="0" />
-          </label>
-
-          <label>계약전력(kW) <span class="small">요금 계산 시 선택</span>
-            <input id="contractKw" type="number" step="0.1" min="0" placeholder="예: 100" />
-          </label>
-
-          <label id="lightKwhWrap">경부하 사용량(kWh) <span class="small">시간대별 선택 시</span>
-            <input id="lightKwh" type="number" step="0.1" min="0" placeholder="예: 10000" />
-          </label>
-
-          <label id="midKwhWrap">중간부하 사용량(kWh) <span class="small">시간대별 선택 시</span>
-            <input id="midKwh" type="number" step="0.1" min="0" placeholder="예: 20000" />
-          </label>
-
-          <label id="peakKwhWrap">최대부하 사용량(kWh) <span class="small">시간대별 선택 시</span>
-            <input id="peakKwh" type="number" step="0.1" min="0" placeholder="예: 5000" />
-          </label>
-
-          <label>기존 전력(kW) <span class="small">절감률 계산 시 선택</span>
+          <label>기존전력(kW)
             <input id="beforeKw" type="number" step="0.001" min="0" placeholder="예: 78.825" />
           </label>
 
-          <label>개선 후 전력(kW) <span class="small">절감률 계산 시 선택</span>
+          <label>개선후 전력(kW)
             <input id="afterKw" type="number" step="0.001" min="0" placeholder="예: 56.886" />
           </label>
 
-          <label>투자비(원) <span class="small">회수기간 계산 시 선택</span>
+          <label>투자비(원)
             <input id="investment" type="number" step="1000" min="0" placeholder="예: 5000000" />
+          </label>
+
+          <label class="full">시간대 자동 산정 안내
+            <textarea id="touTimeInfo" readonly rows="5"></textarea>
           </label>
         </div>
 
         <div class="actions">
-          <button id="energyBtn" class="primary">계산하기</button>
+          <button id="energyBtn" class="primary">자동 계산</button>
           <button id="energyResetBtn" class="secondary">초기화</button>
         </div>
       </div>
