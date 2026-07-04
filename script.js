@@ -407,8 +407,16 @@ function recommendMotor(){
         <div class="item"><div class="k">새들</div><div class="v">${conduit.saddle}</div></div>
         <div class="item"><div class="k">KEC 간편 검토</div><div class="v"><span class="badge good">IB ≤ In ≤ Iz</span></div></div>
         <div class="item full"><div class="k">선정 근거</div><div class="v kv">IB=${designCurrent.toFixed(1)}A, In=${at}A, Iz=${cable.iz}A\n간편 검토: ${designCurrent.toFixed(1)}A ≤ ${at}A ≤ ${cable.iz}A</div></div>
+        <div class="item full">
+          <div class="k">IB · In · Iz 의미</div>
+          <div class="kecGlossary">
+            <div><b>IB</b><span>설계전류<br><em>${designCurrent.toFixed(1)}A</em></span></div>
+            <div><b>In</b><span>차단기 정격전류<br><em>${at}A</em></span></div>
+            <div><b>Iz</b><span>전선 허용전류<br><em>${cable.iz}A</em></span></div>
+          </div>
+        </div>
       </div>
-      <div class="basis">※ 일반 부하는 IB 이상에서 표준 정격을 선택하고, 모터 부하는 기동·연속운전 여유를 위해 IB×125% 이상에서 표준 정격을 선택했습니다. 실제 적용 전 기동방식, EOCR/과부하계전기, 전압강하, 차단용량, 포설조건을 확인하세요.</div>
+      <div class="basis">※ KEC 검토는 회로 설계전류(IB), 보호장치 정격전류(In), 전선 허용전류(Iz)의 관계를 우선 확인합니다. 일반 부하는 IB 이상에서 표준 정격을 선택하고, 모터 부하는 기동·연속운전 여유를 위해 IB×125% 이상에서 표준 정격을 선택했습니다. 실제 적용 전 기동방식, EOCR/과부하계전기, 전압강하, 차단용량, 포설조건을 확인하세요.</div>
       <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
     `;
     $('motorResult').classList.remove('hidden');
