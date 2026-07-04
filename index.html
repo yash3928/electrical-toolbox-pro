@@ -10,7 +10,7 @@
   <main class="app">
     <header class="hero">
       <div>
-        <p class="eyebrow">KEC Edition · Ver 2.0</p>
+        <p class="eyebrow">KEC Edition · Ver 2.1</p>
         <h1>⚡ Electrical Toolbox Pro</h1>
         <p class="sub">전기 실무 자재 추천기</p>
       </div>
@@ -19,6 +19,7 @@
     <nav class="tabs" aria-label="메뉴">
       <button class="tab active" data-tab="motor">모터 자재 선정</button>
       <button class="tab" data-tab="conduit">전선관 부속 선정</button>
+      <button class="tab" data-tab="cable">케이블 자재 선정</button>
     </nav>
 
     <section id="motor" class="panel active">
@@ -104,6 +105,44 @@
       </div>
 
       <div id="conduitResult" class="result hidden"></div>
+    </section>
+
+
+
+    <section id="cable" class="panel">
+      <div class="card">
+        <h2>케이블 자재 선정</h2>
+        <p class="help">케이블 종류와 SQ를 선택하면 터미널·수축튜브·절연테이프·케이블타이 등 기본 자재를 표시합니다.</p>
+
+        <div class="grid">
+          <label>케이블 종류
+            <select id="cableType">
+              <option value="CV_4C">CV 4C</option>
+              <option value="CV_3C">CV 3C</option>
+              <option value="CV_2C">CV 2C</option>
+              <option value="HIV_SINGLE">HIV/IV 단심</option>
+            </select>
+          </label>
+
+          <label>케이블 굵기
+            <select id="cableSq"></select>
+          </label>
+
+          <label>접속 목적
+            <select id="cableUse">
+              <option value="panel">판넬/차단기 단자 접속</option>
+              <option value="motor">모터 단자함 접속</option>
+              <option value="junction">중간 접속/분기</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="cableBtn" class="primary">케이블 자재 추천</button>
+        </div>
+      </div>
+
+      <div id="cableResult" class="result hidden"></div>
     </section>
 
     <footer class="notice">

@@ -4,11 +4,14 @@ function init(){
   initTabs();
   initMotorSelects();
   initConduitSelect();
+  initCableSelect();
   $('inputMode').addEventListener('change', updateInputMode);
   $('recommendBtn').addEventListener('click', recommendMotor);
   $('resetBtn').addEventListener('click', resetMotor);
   $('conduitType').addEventListener('change', initConduitSelect);
   $('conduitBtn').addEventListener('click', recommendConduit);
+  $('cableType').addEventListener('change', initCableSelect);
+  $('cableBtn').addEventListener('click', recommendCable);
   updateInputMode();
 }
 
@@ -42,6 +45,12 @@ function updateInputMode(){
 function initConduitSelect(){
   const type = $('conduitType').value;
   $('conduitSize').innerHTML = CONDUIT_ACCESSORIES[type].sizes.map(s=>`<option value="${s}">${type}${s}</option>`).join('');
+}
+
+
+function initCableSelect(){
+  $('cableSq').innerHTML = CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join('');
+  $('cableSq').value = '16';
 }
 
 function getKw(){
@@ -191,6 +200,52 @@ function recommendConduit(){
     <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
   `;
   $('conduitResult').classList.remove('hidden');
+  bindCopyButtons();
+}
+
+
+
+function recommendCable(){
+  const typeKey = $('cableType').value;
+  const sq = parseFloat($('cableSq').value);
+  const use = $('cableUse').value;
+  const typeInfo = CABLE_TYPE_INFO[typeKey];
+  const data = CABLE_ACCESSORY_DB.find(c=>c.sq === sq);
+  const tools = COMMON_CABLE_TOOLS[use] || [];
+  const useLabel = $('cableUse').selectedOptions[0].textContent;
+  const cableName = `${typeInfo.label} × ${sq}SQ`;
+  const copyText = [
+    `■ 케이블 자재 추천`,
+    `케이블: ${cableName}`,
+    `용도: ${useLabel}`,
+    `압착터미널: ${data.terminal}`,
+    `Y터미널 참고: ${data.yTerminal}`,
+    `권장 볼트: ${data.lugBolt}`,
+    `수축튜브: ${data.heatShrink}`,
+    `케이블타이: ${data.tie}`,
+    `탈피 길이 참고: ${data.strip}`,
+    `기본 소모품: ${tools.join(', ')}`,
+    `비고: ${typeInfo.note}`
+  ].join('\n');
+
+  $('cableResult').innerHTML = `
+    <h3>케이블 자재 추천</h3>
+    <div class="resultGrid">
+      <div class="item"><div class="k">케이블</div><div class="v">${cableName}</div></div>
+      <div class="item"><div class="k">접속 목적</div><div class="v">${useLabel}</div></div>
+      <div class="item"><div class="k">압착터미널</div><div class="v">${data.terminal}</div></div>
+      <div class="item"><div class="k">Y터미널 참고</div><div class="v">${data.yTerminal}</div></div>
+      <div class="item"><div class="k">권장 볼트</div><div class="v">${data.lugBolt}</div></div>
+      <div class="item"><div class="k">수축튜브</div><div class="v">${data.heatShrink}</div></div>
+      <div class="item"><div class="k">케이블타이</div><div class="v">${data.tie}</div></div>
+      <div class="item"><div class="k">탈피 길이 참고</div><div class="v">${data.strip}</div></div>
+      <div class="item full"><div class="k">기본 소모품</div><div class="v">${tools.map(t=>'□ '+t).join('<br>')}</div></div>
+      <div class="item full"><div class="k">비고</div><div class="v">${typeInfo.note}</div></div>
+    </div>
+    <div class="basis">※ 터미널 규격은 케이블 SQ 기준의 실무 참고값입니다. 실제 차단기·단자대·모터 단자함의 볼트 규격, 단자 폭, 제조사 압착단자 치수를 최종 확인하세요.</div>
+    <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
+  `;
+  $('cableResult').classList.remove('hidden');
   bindCopyButtons();
 }
 

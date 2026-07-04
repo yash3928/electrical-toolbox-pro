@@ -45,3 +45,31 @@ const LOCATION_RULES = {
   indoorExposed:{label:'실내 노출/기계 주변', conduitType:'GW'},
   outdoorWet:{label:'옥외/습기 우려', conduitType:'GW'}
 };
+
+// 케이블 굵기별 접속 자재 간편 DB. 터미널은 제조사 단자대 볼트 규격에 따라 최종 확인.
+const CABLE_ACCESSORY_DB = [
+  {sq:1.5, terminal:'R1.5-4', yTerminal:'Y1.5-4', heatShrink:'φ4~6mm', tie:'소형 케이블타이 100~150mm', lugBolt:'M4', strip:'약 8~10mm'},
+  {sq:2.5, terminal:'R2-4', yTerminal:'Y2-4', heatShrink:'φ5~8mm', tie:'소형 케이블타이 150mm', lugBolt:'M4', strip:'약 9~11mm'},
+  {sq:4, terminal:'R3.5-4', yTerminal:'Y3.5-4', heatShrink:'φ6~10mm', tie:'소형/중형 케이블타이 150~200mm', lugBolt:'M4', strip:'약 10~12mm'},
+  {sq:6, terminal:'R5.5-5', yTerminal:'Y5.5-5', heatShrink:'φ8~12mm', tie:'중형 케이블타이 200mm', lugBolt:'M5', strip:'약 11~13mm'},
+  {sq:10, terminal:'R8-5', yTerminal:'Y8-5', heatShrink:'φ10~16mm', tie:'중형 케이블타이 200~250mm', lugBolt:'M5', strip:'약 12~15mm'},
+  {sq:16, terminal:'R14-6', yTerminal:'Y14-6', heatShrink:'φ14~20mm', tie:'중형/대형 케이블타이 250mm', lugBolt:'M6', strip:'약 15~18mm'},
+  {sq:25, terminal:'R22-8', yTerminal:'Y22-8', heatShrink:'φ18~25mm', tie:'대형 케이블타이 300mm', lugBolt:'M8', strip:'약 18~22mm'},
+  {sq:35, terminal:'R38-8', yTerminal:'Y38-8', heatShrink:'φ22~30mm', tie:'대형 케이블타이 300~370mm', lugBolt:'M8', strip:'약 20~25mm'},
+  {sq:50, terminal:'R60-10', yTerminal:'-', heatShrink:'φ30~40mm', tie:'대형 케이블타이 370mm', lugBolt:'M10', strip:'약 24~30mm'},
+  {sq:70, terminal:'R70-10', yTerminal:'-', heatShrink:'φ35~50mm', tie:'대형 케이블타이 370~450mm', lugBolt:'M10', strip:'약 28~35mm'},
+  {sq:95, terminal:'R100-12', yTerminal:'-', heatShrink:'φ45~60mm', tie:'대형 케이블타이 450mm 이상', lugBolt:'M12', strip:'약 32~40mm'}
+];
+
+const CABLE_TYPE_INFO = {
+  CV_4C:{label:'CV 4C', cores:'4심', note:'삼상 모터/동력 부하에 주로 사용'},
+  CV_3C:{label:'CV 3C', cores:'3심', note:'3선식 동력/단상 회로 등 현장 조건에 따라 사용'},
+  CV_2C:{label:'CV 2C', cores:'2심', note:'단상 2선식 부하에 주로 사용'},
+  HIV_SINGLE:{label:'HIV/IV 단심', cores:'단심', note:'제어반 내부 배선 또는 전선관 내 절연전선용'}
+};
+
+const COMMON_CABLE_TOOLS = {
+  panel:['절연캡 또는 수축튜브', '상표시 마킹튜브/라벨', '케이블타이', '절연테이프', '압착공구'],
+  motor:['절연캡 또는 수축튜브', '상표시 마킹튜브/라벨', '방수테이프(습기 우려 시)', '케이블타이', '압착공구'],
+  junction:['직선슬리브 또는 압착슬리브', '수축튜브', '절연테이프', '방수테이프(습기 우려 시)', '압착공구']
+};
