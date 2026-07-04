@@ -8,6 +8,7 @@ function init(){
   initTariffSelect();
   initTerminalBlockSelect();
   $('inputMode').addEventListener('change', updateInputMode);
+  $('loadType')?.addEventListener('change', updateLoadType);
   $('recommendBtn').addEventListener('click', recommendMotor);
   $('resetBtn').addEventListener('click', resetMotor);
   $('conduitType').addEventListener('change', initConduitSelect);
@@ -45,9 +46,29 @@ function initMotorSelects(){
   $('kwSelect').innerHTML = MOTOR_SIZES.map(m=>`<option value="${m.kw}">${m.kw}kW (${m.hp}HP)</option>`).join('');
   $('hpSelect').value = '3';
   $('kwSelect').value = '2.2';
+  $('inputMode').value = 'kwDirect';
+}
+
+function updateLoadType(){
+  const loadType = $('loadType')?.value || 'general';
+  if(loadType === 'general' && $('inputMode').value === 'hpSelect') $('inputMode').value = 'kwDirect';
+  if(loadType === 'general'){
+    if(!$('pf').value) $('pf').value = '0.90';
+    $('eff').value = '1.00';
+    $('eff').readOnly = true;
+  }else{
+    if(Number($('eff').value) >= 1) $('eff').value = '0.85';
+    $('eff').readOnly = false;
+  }
+  renderInputMode();
 }
 
 function updateInputMode(){
+  if($('inputMode').value === 'hpSelect') $('loadType').value = 'motor';
+  updateLoadType();
+}
+
+function renderInputMode(){
   const mode = $('inputMode').value;
   $('hpWrap').classList.toggle('hidden', mode !== 'hpSelect');
   $('kwWrap').classList.toggle('hidden', mode !== 'kwSelect');
@@ -198,9 +219,10 @@ function getKw(){
   return {kw, label:`${kw}kW 직접입력`};
 }
 
-function calcCurrent(kw, phase, pf, eff){
-  if(phase === 'three') return kw * 1000 / (Math.sqrt(3) * 380 * pf * eff);
-  return kw * 1000 / (220 * pf * eff);
+function calcCurrent(kw, phase, pf, eff, loadType){
+  const appliedEff = loadType === 'motor' ? eff : 1;
+  if(phase === 'three') return kw * 1000 / (Math.sqrt(3) * 380 * pf * appliedEff);
+  return kw * 1000 / (220 * pf * appliedEff);
 }
 
 function nextStandard(arr, value){
@@ -237,12 +259,13 @@ function recommendMotor(){
   try{
     const {kw,label} = getKw();
     const phase = $('phase').value;
-    const pf = parseFloat($('pf').value) || 0.85;
+    const loadType = $('loadType')?.value || 'general';
+    const pf = parseFloat($('pf').value) || 0.90;
     const eff = parseFloat($('eff').value) || 0.85;
     const locationKey = $('location').value;
-    const current = calcCurrent(kw, phase, pf, eff);
-    const designCurrent = current; // KEC IB: 회로 설계전류. 모터 특성상 별도 과부하/기동 검토 필요.
-    const targetBreaker = current * 1.25;
+    const current = calcCurrent(kw, phase, pf, eff, loadType);
+    const designCurrent = current; // KEC IB: 회로 설계전류
+    const targetBreaker = loadType === 'motor' ? current * 1.25 : current;
     const at = nextStandard(BREAKER_RATINGS, targetBreaker);
     const af = getFrame(at);
     const cable = selectCable(at);
@@ -255,9 +278,10 @@ function recommendMotor(){
 
     const copyText = [
       `■ Electrical Toolbox Pro 추천`,
-      `용량: ${label}`,
+      `부하: ${label}`,
+      `부하종류: ${loadType === 'motor' ? '모터 부하' : '일반 부하'}`,
       `전원: ${voltage}`,
-      `정격전류: ${current.toFixed(1)}A`,
+      `설계전류: ${current.toFixed(1)}A`,
       `차단기: ${mccb}`,
       `누전차단기: ${elb}`,
       `케이블: ${cableText}`,
@@ -272,9 +296,10 @@ function recommendMotor(){
     $('motorResult').innerHTML = `
       <h3>추천 결과</h3>
       <div class="resultGrid">
-        <div class="item"><div class="k">모터 용량</div><div class="v">${label}</div></div>
+        <div class="item"><div class="k">부하 용량</div><div class="v">${label}</div></div>
+        <div class="item"><div class="k">부하 종류</div><div class="v">${loadType === 'motor' ? '모터 부하' : '일반 부하'}</div></div>
         <div class="item"><div class="k">전원</div><div class="v">${voltage}</div></div>
-        <div class="item"><div class="k">계산 전류</div><div class="v">${current.toFixed(1)} A</div></div>
+        <div class="item"><div class="k">설계전류 IB</div><div class="v">${current.toFixed(1)} A</div></div>
         <div class="item"><div class="k">설치 상황</div><div class="v">${LOCATION_RULES[locationKey].label}</div></div>
         <div class="item"><div class="k">차단기</div><div class="v">${mccb}</div></div>
         <div class="item"><div class="k">누전차단기</div><div class="v">${elb}</div></div>
@@ -288,7 +313,7 @@ function recommendMotor(){
         <div class="item"><div class="k">KEC 간편 검토</div><div class="v"><span class="badge good">IB ≤ In ≤ Iz</span></div></div>
         <div class="item full"><div class="k">선정 근거</div><div class="v kv">IB=${designCurrent.toFixed(1)}A, In=${at}A, Iz=${cable.iz}A\n간편 검토: ${designCurrent.toFixed(1)}A ≤ ${at}A ≤ ${cable.iz}A</div></div>
       </div>
-      <div class="basis">※ 차단기는 운전전류×125% 이상에서 표준 정격을 선택했습니다. 모터 기동전류, 기동방식, EOCR/과부하계전기, 전압강하, 차단용량은 현장 조건에 따라 별도 검토하세요.</div>
+      <div class="basis">※ 일반 부하는 IB 이상에서 표준 정격을 선택하고, 모터 부하는 기동·연속운전 여유를 위해 IB×125% 이상에서 표준 정격을 선택했습니다. 실제 적용 전 기동방식, EOCR/과부하계전기, 전압강하, 차단용량, 포설조건을 확인하세요.</div>
       <button class="copyBtn" data-copy="${escapeHtml(copyText)}">결과 복사하기</button>
     `;
     $('motorResult').classList.remove('hidden');
@@ -406,14 +431,15 @@ function recommendTerminalBlock(){
 
 function resetMotor(){
   $('phase').value='three';
-  $('inputMode').value='hpSelect';
+  $('inputMode').value='kwDirect';
   $('hpSelect').value='3';
   $('kwSelect').value='2.2';
   $('kwDirect').value='';
   $('location').value='indoorHidden';
-  $('pf').value='0.85';
-  $('eff').value='0.85';
-  updateInputMode();
+  $('loadType').value='general';
+  $('pf').value='0.90';
+  $('eff').value='1.00';
+  updateLoadType();
   $('motorResult').classList.add('hidden');
 }
 
@@ -626,7 +652,7 @@ function resetEnergy(){
   $('energyResult').classList.add('hidden');
 }
 
-// ===== Ver2.9 simplified energy calculator overrides =====
+// ===== Ver3.1 simplified power-saving module =====
 function getSeasonFromMonth(month){
   const m = Number(month || 1);
   if([6,7,8].includes(m)) return 'summer';
@@ -642,241 +668,175 @@ function getSeasonFullLabel(season){
   }[season] || season;
 }
 
-function getTouSegments(season){
-  if(season === 'winter'){
-    return {
-      light:[[0,8],[22,24]],
-      mid:[[8,9],[12,16],[19,22]],
-      peak:[[9,12],[16,19]]
-    };
-  }
-  return {
-    light:[[0,8],[22,24]],
-    mid:[[8,15],[21,22]],
-    peak:[[15,21]]
-  };
-}
-
-function overlap(a,b){
-  return Math.max(0, Math.min(a[1], b[1]) - Math.max(a[0], b[0]));
-}
-
-function operatingIntervals(pattern, hours){
-  const h = Math.max(0, Math.min(24, Number(hours || 0)));
-  if(pattern === 'continuous') return {hours:24, intervals:[[0,24]], label:'24시간 연속운전'};
-  const start = pattern === 'night' ? 22 : 8;
-  const label = pattern === 'night' ? `야간운전 22시 시작, ${h}h/일` : `주간운전 08시 시작, ${h}h/일`;
-  if(h === 0) return {hours:0, intervals:[], label};
-  const end = start + h;
-  if(end <= 24) return {hours:h, intervals:[[start,end]], label};
-  return {hours:h, intervals:[[start,24],[0,end-24]], label};
-}
-
-function allocateTouHours(season, pattern, hours){
-  const op = operatingIntervals(pattern, hours);
-  const segments = getTouSegments(season);
-  const result = {light:0, mid:0, peak:0, label:op.label};
-  for(const interval of op.intervals){
-    for(const key of ['light','mid','peak']){
-      for(const seg of segments[key]) result[key] += overlap(interval, seg);
-    }
-  }
-  return result;
+function updateSavingMode(){
+  const type = $('savingType')?.value || 'time';
+  $('timeSavingBox')?.classList.toggle('hidden', type !== 'time');
+  $('powerSavingBox')?.classList.toggle('hidden', type !== 'power');
 }
 
 function updateTariffInputs(){
   if(!$('tariffType')) return;
   const tariff = getTariff();
-  const monthEl = $('tariffMonth');
-  const month = monthEl ? Number(monthEl.value || new Date().getMonth()+1) : new Date().getMonth()+1;
+  const month = Number($('tariffMonth')?.value || new Date().getMonth()+1);
   const season = getSeasonFromMonth(month);
   if($('tariffSeason')) $('tariffSeason').value = season;
   if($('seasonView')) $('seasonView').value = getSeasonFullLabel(season);
   if($('basicRate')) $('basicRate').value = tariff?.basic || 0;
 
-  const pattern = $('operationPattern')?.value || 'day';
-  if($('energyHours')){
-    if(pattern === 'continuous'){
-      $('energyHours').value = '24';
-      $('energyHours').readOnly = true;
-    }else{
-      $('energyHours').readOnly = false;
-    }
-  }
-
-  const hours = getVal('energyHours') || 0;
-  const a = allocateTouHours(season, pattern, hours);
-  if($('lightHours')) $('lightHours').value = a.light.toFixed(2);
-  if($('midHours')) $('midHours').value = a.mid.toFixed(2);
-  if($('peakHours')) $('peakHours').value = a.peak.toFixed(2);
-
-  let info = `${getSeasonFullLabel(season)} 시간대\n`;
   const guide = getTouTimeGuide(season);
-  info += `${guide.light}\n${guide.mid}\n${guide.peak}\n\n`;
-  info += `현재 산정: ${a.label}\n`;
-  info += `→ 경부하 ${num(a.light,2)}h/일, 중간부하 ${num(a.mid,2)}h/일, 최대부하 ${num(a.peak,2)}h/일`;
-  if($('touTimeInfo')) $('touTimeInfo').value = info;
-
-  if(tariff && tariff.id !== 'manual'){
-    if(tariff.type === 'flat'){
-      $('energyRate').value = tariff.energy[season];
-    }else{
-      const r = tariff.energy[season];
-      const totalH = Math.max(a.light + a.mid + a.peak, 0.0001);
-      const avg = (a.light*r.light + a.mid*r.mid + a.peak*r.peak)/totalH;
-      $('energyRate').value = avg.toFixed(2);
-    }
-  }
+  const rateText = tariff?.type === 'tou'
+    ? `선택 계약종별은 시간대별 단가 적용\n${guide.light}\n${guide.mid}\n${guide.peak}`
+    : `선택 계약종별은 전체시간 단가 적용\n${getSeasonFullLabel(season)} 전력량요금 단가로 계산`;
+  if($('touTimeInfo')) $('touTimeInfo').value = rateText;
+  updateSavingMode();
 }
 
-function calcTouKwhByKw(kw, days, season, pattern, hours){
-  const h = allocateTouHours(season, pattern, hours);
-  return {
-    hours:h,
-    light:kw * h.light * days,
-    mid:kw * h.mid * days,
-    peak:kw * h.peak * days,
-    total:kw * (h.light + h.mid + h.peak) * days
-  };
+function getTouRates(tariff, season){
+  if(tariff.type === 'tou') return tariff.energy[season];
+  const flat = tariff.energy[season] || 0;
+  return {light:flat, mid:flat, peak:flat};
 }
 
-function calcEnergyChargeForKw(kw, days, tariff, season, pattern, hours){
-  if(tariff.type === 'tou'){
-    const k = calcTouKwhByKw(kw, days, season, pattern, hours);
-    const r = tariff.energy[season];
-    return {
-      kwh:k.total,
-      lightKwh:k.light,
-      midKwh:k.mid,
-      peakKwh:k.peak,
-      hours:k.hours,
-      energyCharge:k.light*r.light + k.mid*r.mid + k.peak*r.peak,
-      rateText:`경부하 ${r.light}원/kWh · 중간부하 ${r.mid}원/kWh · 최대부하 ${r.peak}원/kWh`,
-      avgRate:k.total>0 ? (k.light*r.light + k.mid*r.mid + k.peak*r.peak)/k.total : 0
-    };
-  }
-  const h = pattern === 'continuous' ? 24 : Number(hours || 0);
-  const kwh = kw * h * days;
-  const rate = tariff.energy[season] || 0;
-  return {
-    kwh,
-    lightKwh:0,
-    midKwh:0,
-    peakKwh:0,
-    hours:{light:0,mid:0,peak:0,label:pattern === 'continuous' ? '24시간 연속운전' : '일반 단가 적용'},
-    energyCharge:kwh * rate,
-    rateText:`전력량요금 ${rate}원/kWh`,
-    avgRate:rate
-  };
+function calcByTouHours(kw, days, hours, rates){
+  const lightKwh = kw * (hours.light || 0) * days;
+  const midKwh = kw * (hours.mid || 0) * days;
+  const peakKwh = kw * (hours.peak || 0) * days;
+  const kwh = lightKwh + midKwh + peakKwh;
+  const energyCharge = lightKwh*rates.light + midKwh*rates.mid + peakKwh*rates.peak;
+  return {lightKwh, midKwh, peakKwh, kwh, energyCharge};
+}
+
+function calcVariableTotal(energyCharge, kwh, climateRate, fuelRate){
+  const climate = kwh * climateRate;
+  const fuel = kwh * fuelRate;
+  const subtotal = energyCharge + climate + fuel;
+  const vat = Math.round(subtotal * 0.10);
+  const fund = Math.floor((subtotal * 0.027) / 10) * 10;
+  return {climate, fuel, subtotal, vat, fund, total:subtotal + vat + fund};
+}
+
+function validateHours(hours, label){
+  const total = (hours.light || 0) + (hours.mid || 0) + (hours.peak || 0);
+  if(total > 24.0001) throw new Error(`${label}의 경·중·최대부하 운전시간 합계가 24시간을 초과합니다.`);
+  return total;
+}
+
+function rateSummary(tariff, season, rates){
+  if(tariff.type === 'tou') return `경부하 ${rates.light}원/kWh · 중간부하 ${rates.mid}원/kWh · 최대부하 ${rates.peak}원/kWh`;
+  return `전체시간 ${rates.mid}원/kWh`;
 }
 
 function calculateEnergy(){
-  updateTariffInputs();
-  const tariff = getTariff();
-  const season = $('tariffSeason').value;
-  const pattern = $('operationPattern')?.value || 'day';
-  const loadKw = getVal('energyKw');
-  const hours = getVal('energyHours');
-  const days = getVal('energyDays');
-  const contractKw = getVal('contractKw');
-  const beforeKw = getVal('beforeKw');
-  const afterKw = getVal('afterKw');
-  const investment = getVal('investment');
-  const climateRate = getVal('climateRate');
-  const fuelRate = getVal('fuelRate');
+  try{
+    updateTariffInputs();
+    const tariff = getTariff();
+    const season = $('tariffSeason').value;
+    const rates = getTouRates(tariff, season);
+    const days = getVal('energyDays');
+    const contractKw = getVal('contractKw');
+    const climateRate = getVal('climateRate');
+    const fuelRate = getVal('fuelRate');
+    const basicCharge = contractKw * (tariff.basic || 0);
+    const savingType = $('savingType')?.value || 'time';
 
-  if(loadKw <= 0 && !(beforeKw > 0 && afterKw >= 0)){
-    showEnergyError('부하용량(kW) 또는 기존전력/개선후 전력을 입력하세요.');
-    return;
+    if(days <= 0) throw new Error('월 운전일수를 입력하세요.');
+
+    let title = '';
+    let rows = '';
+    let copy = [];
+    let basis = '';
+
+    if(savingType === 'time'){
+      const kw = getVal('loadKwTime');
+      if(kw <= 0) throw new Error('부하용량(kW)을 입력하세요.');
+
+      const oldHours = {light:getVal('oldLightHours'), mid:getVal('oldMidHours'), peak:getVal('oldPeakHours')};
+      const newHours = {light:getVal('newLightHours'), mid:getVal('newMidHours'), peak:getVal('newPeakHours')};
+      validateHours(oldHours, '기존 운전시간');
+      validateHours(newHours, '변경 운전시간');
+
+      const before = calcByTouHours(kw, days, oldHours, rates);
+      const after = calcByTouHours(kw, days, newHours, rates);
+      const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+      const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+      const saveKwh = before.kwh - after.kwh;
+      const saveMoney = beforeFee.total - afterFee.total;
+      const saveRate = before.kwh > 0 ? saveKwh / before.kwh * 100 : 0;
+
+      title = '운전시간 개선 절감효과';
+      rows = `
+        <div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}<br>기후환경 ${climateRate}원/kWh · 연료비조정 ${fuelRate}원/kWh 자동 적용</div></div>
+        <div class="item"><div class="k">부하용량</div><div class="v">${num(kw,3)} kW</div></div>
+        <div class="item"><div class="k">기본요금 참고</div><div class="v">${won(basicCharge)}</div></div>
+        <div class="item"><div class="k">기존 월 사용량</div><div class="v">${num(before.kwh)} kWh</div></div>
+        <div class="item"><div class="k">변경 월 사용량</div><div class="v">${num(after.kwh)} kWh</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div>
+        <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(saveKwh*12)} kWh</div></div>
+        <div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div>
+        <div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div>
+        <div class="item"><div class="k">연 절감금액</div><div class="v">${won(saveMoney*12)}</div></div>
+        <div class="item full"><div class="k">기존 시간대별 사용량</div><div class="v">경 ${num(before.lightKwh)}kWh · 중 ${num(before.midKwh)}kWh · 최 ${num(before.peakKwh)}kWh</div></div>
+        <div class="item full"><div class="k">변경 시간대별 사용량</div><div class="v">경 ${num(after.lightKwh)}kWh · 중 ${num(after.midKwh)}kWh · 최 ${num(after.peakKwh)}kWh</div></div>
+      `;
+      basis = '운전시간 개선: 기존 사용량=부하용량×기존 시간대별 운전시간×월 운전일수, 변경 사용량=부하용량×변경 시간대별 운전시간×월 운전일수, 절감량=기존-변경. 기본요금은 동일하다고 보고 절감금액에는 전력량요금·기후환경요금·연료비조정요금·부가세·전력산업기반기금의 변동분만 반영했습니다.';
+      copy = ['■ 운전시간 개선 절감효과', `계약종별: ${tariff.label}`, `부하용량: ${num(kw,3)}kW`, `월 절감전력량: ${num(saveKwh)}kWh`, `연 절감전력량: ${num(saveKwh*12)}kWh`, `월 절감금액: ${won(saveMoney)}`, `연 절감금액: ${won(saveMoney*12)}`];
+    }else{
+      const beforeKw = getVal('beforeKw');
+      const afterKw = getVal('afterKw');
+      if(beforeKw <= 0) throw new Error('기존전력(kW)을 입력하세요.');
+      if(afterKw < 0) throw new Error('개선후 전력(kW)을 입력하세요.');
+      if(afterKw > beforeKw) throw new Error('개선후 전력이 기존전력보다 큽니다. 입력값을 확인하세요.');
+
+      const hours = {light:getVal('saveLightHours'), mid:getVal('saveMidHours'), peak:getVal('savePeakHours')};
+      validateHours(hours, '운전시간');
+      const before = calcByTouHours(beforeKw, days, hours, rates);
+      const after = calcByTouHours(afterKw, days, hours, rates);
+      const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+      const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+      const saveKw = beforeKw - afterKw;
+      const saveKwh = before.kwh - after.kwh;
+      const saveMoney = beforeFee.total - afterFee.total;
+      const saveRate = saveKw / beforeKw * 100;
+
+      title = '전력량 절감효과';
+      rows = `
+        <div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}<br>기후환경 ${climateRate}원/kWh · 연료비조정 ${fuelRate}원/kWh 자동 적용</div></div>
+        <div class="item"><div class="k">기존전력</div><div class="v">${num(beforeKw,3)} kW</div></div>
+        <div class="item"><div class="k">개선후 전력</div><div class="v">${num(afterKw,3)} kW</div></div>
+        <div class="item"><div class="k">절감전력</div><div class="v">${num(saveKw,3)} kW</div></div>
+        <div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div>
+        <div class="item"><div class="k">기존 월 사용량</div><div class="v">${num(before.kwh)} kWh</div></div>
+        <div class="item"><div class="k">개선 월 사용량</div><div class="v">${num(after.kwh)} kWh</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div>
+        <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(saveKwh*12)} kWh</div></div>
+        <div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div>
+        <div class="item"><div class="k">연 절감금액</div><div class="v">${won(saveMoney*12)}</div></div>
+        <div class="item full"><div class="k">시간대별 운전</div><div class="v">경 ${num(hours.light,1)}h/일 · 중 ${num(hours.mid,1)}h/일 · 최 ${num(hours.peak,1)}h/일</div></div>
+      `;
+      basis = '전력량 절감: 절감전력=기존전력-개선후전력, 절감전력량=절감전력×시간대별 운전시간×월 운전일수. 기본요금은 동일하다고 보고 절감금액에는 전력량요금·기후환경요금·연료비조정요금·부가세·전력산업기반기금의 변동분만 반영했습니다.';
+      copy = ['■ 전력량 절감효과', `계약종별: ${tariff.label}`, `절감전력: ${num(saveKw,3)}kW`, `월 절감전력량: ${num(saveKwh)}kWh`, `연 절감전력량: ${num(saveKwh*12)}kWh`, `월 절감금액: ${won(saveMoney)}`, `연 절감금액: ${won(saveMoney*12)}`];
+    }
+
+    $('energyResult').innerHTML = `
+      <h3>${title}</h3>
+      <div class="resultGrid">${rows}</div>
+      <div class="basis">${basis}</div>
+      <button class="copyBtn" data-copy="${escapeHtml(copy.join('\n'))}">결과 복사하기</button>
+    `;
+    $('energyResult').classList.remove('hidden');
+    bindCopyButtons();
+  }catch(e){
+    showEnergyError(e.message);
   }
-  if(days <= 0){ showEnergyError('월 운전일수를 입력하세요.'); return; }
-  if(pattern !== 'continuous' && hours <= 0){ showEnergyError('일 운전시간을 입력하세요.'); return; }
-
-  const bill = calcEnergyChargeForKw(loadKw, days, tariff, season, pattern, hours);
-  const basicCharge = contractKw * (tariff.basic || 0);
-  const climateCharge = bill.kwh * climateRate;
-  const fuelCharge = bill.kwh * fuelRate;
-  const electricityCharge = basicCharge + bill.energyCharge + climateCharge + fuelCharge;
-  const vat = Math.round(electricityCharge * 0.10);
-  const fund = Math.floor((electricityCharge * 0.027) / 10) * 10;
-  const totalBill = electricityCharge + vat + fund;
-
-  const hasSaving = beforeKw > 0 && afterKw >= 0 && beforeKw >= afterKw;
-  const saveKw = hasSaving ? beforeKw - afterKw : 0;
-  const saving = hasSaving ? calcEnergyChargeForKw(saveKw, days, tariff, season, pattern, hours) : null;
-  const savingEnergyPlusFees = saving ? saving.energyCharge + saving.kwh * (climateRate + fuelRate) : 0;
-  const savingVat = Math.round(savingEnergyPlusFees * 0.10);
-  const savingFund = Math.floor((savingEnergyPlusFees * 0.027) / 10) * 10;
-  const savingMonthly = savingEnergyPlusFees + savingVat + savingFund;
-  const savingYearly = savingMonthly * 12;
-  const savingRate = hasSaving ? saveKw / beforeKw * 100 : 0;
-  const payback = savingMonthly > 0 && investment > 0 ? investment / savingMonthly : 0;
-
-  const touRows = tariff.type === 'tou' ? `
-    <div class="item"><div class="k">경부하 사용량</div><div class="v">${num(bill.lightKwh)} kWh/월</div></div>
-    <div class="item"><div class="k">중간부하 사용량</div><div class="v">${num(bill.midKwh)} kWh/월</div></div>
-    <div class="item"><div class="k">최대부하 사용량</div><div class="v">${num(bill.peakKwh)} kWh/월</div></div>
-  ` : '';
-
-  const savingRows = hasSaving ? `
-    <div class="item"><div class="k">절감전력</div><div class="v">${num(saveKw,3)} kW</div></div>
-    <div class="item"><div class="k">절감률</div><div class="v">${num(savingRate,1)}%</div></div>
-    <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saving.kwh)} kWh/월</div></div>
-    <div class="item"><div class="k">연 절감전력량</div><div class="v">${num(saving.kwh*12)} kWh/년</div></div>
-    <div class="item"><div class="k">월 절감금액</div><div class="v">${won(savingMonthly)}</div></div>
-    <div class="item"><div class="k">연 절감금액</div><div class="v">${won(savingYearly)}</div></div>
-    <div class="item full"><div class="k">투자회수기간</div><div class="v">${payback ? num(payback,1)+'개월' : '투자비 입력 시 계산'}</div></div>
-  ` : `<div class="item full"><div class="k">전력절감 계산</div><div class="v">기존전력과 개선후 전력을 입력하면 절감량·절감액·회수기간을 계산합니다.</div></div>`;
-
-  const copy = [
-    '■ 전력·요금·절감 간편 계산',
-    `계약종별: ${tariff.label}`,
-    `검침월/계절: ${$('tariffMonth')?.value || '-'}월 / ${getSeasonFullLabel(season)}`,
-    `운전패턴: ${bill.hours.label}`,
-    `부하용량: ${loadKw}kW`,
-    `월 사용량: ${num(bill.kwh)}kWh`,
-    `기본요금: ${won(basicCharge)}`,
-    `전력량요금: ${won(bill.energyCharge)}`,
-    `예상 청구금액: ${won(totalBill)}`,
-    ...(hasSaving ? [`절감전력: ${num(saveKw,3)}kW`, `월 절감금액: ${won(savingMonthly)}`, `투자회수기간: ${payback ? num(payback,1)+'개월' : '미계산'}`] : []),
-    '※ 실제 청구액은 한전 고지서 및 역률요금/감면/가산 기준 확인 필요'
-  ];
-
-  $('energyResult').innerHTML = `
-    <h3>자동 계산 결과</h3>
-    <div class="resultGrid">
-      <div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${bill.rateText}<br>기후환경 ${climateRate}원/kWh · 연료비조정 ${fuelRate}원/kWh 자동 적용</div></div>
-      <div class="item"><div class="k">월 사용량</div><div class="v">${num(bill.kwh)} kWh/월</div></div>
-      <div class="item"><div class="k">연 사용량</div><div class="v">${num(bill.kwh*12)} kWh/년</div></div>
-      ${touRows}
-      <div class="item"><div class="k">기본요금</div><div class="v">${won(basicCharge)}</div></div>
-      <div class="item"><div class="k">전력량요금</div><div class="v">${won(bill.energyCharge)}</div></div>
-      <div class="item"><div class="k">기후환경요금</div><div class="v">${won(climateCharge)}</div></div>
-      <div class="item"><div class="k">연료비조정요금</div><div class="v">${won(fuelCharge)}</div></div>
-      <div class="item"><div class="k">부가세 10%</div><div class="v">${won(vat)}</div></div>
-      <div class="item"><div class="k">전력산업기반기금 2.7%</div><div class="v">${won(fund)}</div></div>
-      <div class="item full"><div class="k">월 예상 청구금액</div><div class="v">${won(totalBill)}</div></div>
-      ${savingRows}
-    </div>
-    <div class="basis">입력은 부하용량·운전시간·계약전력·기존/개선후 전력·투자비 중심으로 단순화했습니다. 시간대별 사용량은 선택한 운전패턴과 한전 시간대 기준으로 자동 배분합니다.</div>
-    <button class="copyBtn" data-copy="${escapeHtml(copy.join('\n'))}">결과 복사하기</button>
-  `;
-  $('energyResult').classList.remove('hidden');
-  bindCopyButtons();
 }
 
 function resetEnergy(){
   if($('tariffType')) $('tariffType').value = 'industrial_b_highA_1';
   if($('tariffMonth')) $('tariffMonth').value = String(new Date().getMonth()+1);
-  if($('operationPattern')) $('operationPattern').value = 'day';
-  $('energyKw').value = '';
-  $('energyHours').value = '8';
-  $('energyHours').readOnly = false;
-  $('energyDays').value = '30';
-  $('contractKw').value = '';
-  $('beforeKw').value = '';
-  $('afterKw').value = '';
-  $('investment').value = '';
+  if($('savingType')) $('savingType').value = 'time';
+  ['contractKw','loadKwTime','beforeKw','afterKw'].forEach(id=>{ if($(id)) $(id).value=''; });
+  if($('energyDays')) $('energyDays').value = '30';
+  ['oldLightHours','oldMidHours','oldPeakHours','newLightHours','newMidHours','newPeakHours','saveLightHours','saveMidHours','savePeakHours'].forEach(id=>{ if($(id)) $(id).value='0'; });
   if($('climateRate')) $('climateRate').value = '9';
   if($('fuelRate')) $('fuelRate').value = '5';
   updateTariffInputs();
@@ -885,7 +845,7 @@ function resetEnergy(){
 
 document.addEventListener('DOMContentLoaded', () => {
   if($('tariffMonth')) $('tariffMonth').value = String(new Date().getMonth()+1);
-  ['tariffMonth','operationPattern','energyHours','energyDays','energyKw','contractKw','beforeKw','afterKw','investment'].forEach(id=>{
+  ['tariffMonth','tariffType','savingType','energyDays','contractKw','loadKwTime','oldLightHours','oldMidHours','oldPeakHours','newLightHours','newMidHours','newPeakHours','beforeKw','afterKw','saveLightHours','saveMidHours','savePeakHours'].forEach(id=>{
     const el = $(id);
     if(el) el.addEventListener('input', updateTariffInputs);
     if(el) el.addEventListener('change', updateTariffInputs);
