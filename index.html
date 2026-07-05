@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Electrical Toolbox Pro - KEC 기반 전기 실무 보조 툴</title>
-  <link rel="stylesheet" href="style.css?v=8.0.2" />
+  <link rel="stylesheet" href="style.css?v=8.1" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
-      <p class="eyebrow">KEC Edition · Ver 8.0.2</p>
+      <p class="eyebrow">KEC Edition · Ver 8.1</p>
       <h1>⚡ Electrical Toolbox Pro</h1>
       <p class="sub">KEC 기반 전기 실무 보조 툴</p>
     </header>
@@ -20,6 +20,7 @@
       <button class="tab" data-tab="cable">케이블 자재 선정</button>
       <button class="tab" data-tab="terminalBlock">단자대·터미널 선정</button>
       <button class="tab" data-tab="saving">전력절감 검토</button>
+      <button class="tab" data-tab="tariffAdmin">한전 요금 관리</button>
     </nav>
 
     <section id="material" class="panel active">
@@ -134,6 +135,15 @@
       <div id="equipmentList" class="card hidden"></div>
       <div class="actions"><button id="calcSaving" class="primary">전력절감 검토 결과 산출</button><button id="resetSaving" class="secondary">전체 초기화</button></div>
       <div id="savingResult" class="result hidden"></div>
+    </section>
+
+
+    <section id="tariffAdmin" class="panel">
+      <div class="card">
+        <h2>한전 요금 관리</h2>
+        <p class="help">현재 프로그램에 적용된 한전 요금표 기준일과 계절 구분을 확인합니다. 요금 변경 시 <b>database.js</b>의 요금 데이터만 갱신하는 구조입니다.</p>
+        <div id="tariffInfo" class="result-in-card"></div>
+      </div>
     </section>
 
     <section class="notice"><strong>주의</strong> 본 도구는 KEC, 한전 요금표, 국내 표준 자재 기준을 활용한 실무 보조용입니다. 최종 설계·시공 전 최신 규정, 포설조건, 제조사 치수, 사내 기준을 확인하세요.</section>

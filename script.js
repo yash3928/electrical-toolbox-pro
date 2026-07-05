@@ -7,7 +7,7 @@ let equipmentItems = [];
 const timeRanges = {};
 
 function init(){
-  initTabs(); initMaterial(); initConduit(); initCable(); initTerminalBlock(); initSaving();
+  initTabs(); initMaterial(); initConduit(); initCable(); initTerminalBlock(); initSaving(); initTariffAdmin();
 }
 document.addEventListener('DOMContentLoaded', init);
 
@@ -160,6 +160,8 @@ function itemSeasonDays(item){
 function periodLabel(item){if(item.allYear) return '연중운전 365일'; const days=getItemDays(item); if(days>=245) return `연간운전 기준 (${days}일)`; return `${seasonsShortKo[item.season]} ${days}일`}
 function touKind(season,h){ if(h>=22||h<8) return 'light'; if(season==='winter'){ if((h>=9&&h<12)||(h>=16&&h<19)) return 'peak'; return 'mid'; } if(h>=15&&h<21) return 'peak'; return 'mid'; }
 function tariffById(){return TARIFFS.find(t=>t.id===$('saveTariff').value)||TARIFFS[0]}
+function tariffVersionText(){return typeof TARIFF_VERSION!=='undefined' ? TARIFF_VERSION : '요금표 기준 미지정'}
+function tariffSeasonBasisText(){return '일반·산업용 기준: 여름철 6~8월, 봄·가을철 3~5월·9~10월, 겨울철 11~2월'}
 function rateFor(tariff,season,kind){ if(tariff.type==='tou') return tariff.energy[season][kind]; return tariff.energy[season]; }
 function itemHours(item,changed,opGroup){const raw=changed?(opGroup==='winter'?item.newWinter:item.newNonWinter):(opGroup==='winter'?item.oldWinter:item.oldNonWinter); return raw && raw.length ? raw : Array.from({length:24},(_,i)=>i)}
 function itemRunFactor(item,changed){const min=changed?item.newRunMin:item.oldRunMin; return (Number(min)||0)/60}
@@ -183,7 +185,7 @@ function renderSavingReport(){
     const results=equipmentItems.map(it=>({item:it, calc:calcItem(it,tariff)}));
     const total=results.reduce((a,x)=>{a.oldKwh+=x.calc.oldKwh; a.newKwh+=x.calc.newKwh; a.saveKwh+=x.calc.saveKwh; a.saveMoney+=x.calc.saveMoney; return a},{oldKwh:0,newKwh:0,saveKwh:0,saveMoney:0});
     total.saveRate=total.oldKwh?total.saveKwh/total.oldKwh*100:0;
-    $('savingResult').innerHTML=`<div class="card" id="savingReport"><h3>전력절감 검토 결과</h3><div class="actions report-actions"><button class="secondary" onclick="copyElementText('savingReport')">전체 결과 복사</button><button class="secondary" onclick="printSavingReport()">PDF로 열기/저장</button><button class="secondary" onclick="exportSavingExcel()">엑셀로 저장</button></div><div class="basis">계약종별: ${esc(tariff.label)} · 설비별 산정기간 적용</div>${rateTable(tariff)}${conditionTable(results)}${effectTable(results,total)}${basisDetails(results)}</div>`;
+    $('savingResult').innerHTML=`<div class="card" id="savingReport"><h3>전력절감 검토 결과</h3><div class="actions report-actions"><button class="secondary" onclick="copyElementText('savingReport')">전체 결과 복사</button><button class="secondary" onclick="printSavingReport()">PDF로 열기/저장</button><button class="secondary" onclick="exportSavingExcel()">엑셀로 저장</button></div><div class="basis"><b>계약종별</b>: ${esc(tariff.label)}<br><b>요금표 기준</b>: ${tariffVersionText()} 시행<br><b>산정방식</b>: 설비별 산정기간 적용</div>${rateTable(tariff)}${conditionTable(results)}${effectTable(results,total)}${basisDetails(results)}</div>`;
     $('savingResult').classList.remove('hidden');
   }catch(e){alert(e.message)}
 }
@@ -231,9 +233,32 @@ function conditionTable(results){
 }
 function effectTable(results,total){return `<h4>2. 절감효과</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>설비명</th><th>기존 사용전력</th><th>변경 사용전력</th><th>연 절감전력</th><th>절감률</th><th>연 절감금액</th></tr></thead><tbody>${results.map(x=>`<tr><td>${esc(x.item.name)}</td><td>${num(x.calc.oldKwh,0)}kWh</td><td>${num(x.calc.newKwh,0)}kWh</td><td class="bold">${num(x.calc.saveKwh,0)}kWh</td><td>${num(x.calc.saveRate,1)}%</td><td class="bold">${won(x.calc.saveMoney)}</td></tr>`).join('')}<tr><th>합계</th><th>${num(total.oldKwh,0)}kWh</th><th>${num(total.newKwh,0)}kWh</th><th>${num(total.saveKwh,0)}kWh</th><th>${num(total.saveRate,1)}%</th><th>${won(total.saveMoney)}</th></tr></tbody></table></div>`}
 function seasonPeriod(s){return s==='summer'?'6월~8월':s==='springAutumn'?'3월~5월, 9월~10월':s==='springSummerAutumn'?'3월~10월':'11월~2월'}
-function rateTable(tariff){const rows=['summer','springAutumn','winter'].map(s=>{if(tariff.type==='tou'){const e=tariff.energy[s]; return `<tr><td>${seasonsShortKo[s]}</td><td>${seasonPeriod(s)}</td><td>${e.light}</td><td>${e.mid}</td><td>${e.peak}</td></tr>`} return `<tr><td>${seasonsShortKo[s]}</td><td>${seasonPeriod(s)}</td><td colspan="3">${tariff.energy[s]}</td></tr>`}).join(''); return `<h4>적용 전력량 요금 단가</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>계절</th><th>적용기간</th><th>경부하</th><th>중간부하</th><th>최대부하</th></tr></thead><tbody>${rows}</tbody></table></div>`}
+function rateTable(tariff){
+  const rows=['summer','springAutumn','winter'].map(s=>{
+    if(tariff.type==='tou'){
+      const e=tariff.energy[s];
+      return `<tr><td>${seasonsShortKo[s]}</td><td>${seasonPeriod(s)}</td><td>${e.light}원/kWh</td><td>${e.mid}원/kWh</td><td>${e.peak}원/kWh</td></tr>`
+    }
+    return `<tr><td>${seasonsShortKo[s]}</td><td>${seasonPeriod(s)}</td><td colspan="3">${tariff.energy[s]}원/kWh</td></tr>`
+  }).join('');
+  return `<h4>적용 전력량 요금 단가</h4><div class="basis">요금표 기준: ${tariffVersionText()} 시행 · ${tariffSeasonBasisText()}</div><div class="table-wrap"><table class="report-table"><thead><tr><th>계절</th><th>적용기간</th><th>경부하</th><th>중간부하</th><th>최대부하</th></tr></thead><tbody>${rows}</tbody></table></div>`
+}
 function basisDetails(results){const basisRows=results.map(x=>`<tr><td>${esc(x.item.name)}</td><td>${periodLabel(x.item)}</td><td>${x.item.note?esc(x.item.note):'-'}</td><td>부하(kW) × 대수 × 가동시간(h) × 가동분/60 × 산정일수</td></tr>`).join(''); return `<details><summary>계산근거 및 산정기준 보기</summary><div class="table-wrap"><table class="report-table"><thead><tr><th>설비명</th><th>산정기준</th><th>비고</th><th>계산식</th></tr></thead><tbody>${basisRows}</tbody></table></div><div class="basis">연 절감전력 = 기존 사용량 - 변경 사용량<br>연 절감금액 = 시간대별 절감전력량 × 한전 전력량요금 단가</div></details>`}
 function compressHours(hours){ if(!hours.length) return ''; const sorted=[...hours].sort((a,b)=>a-b); const ranges=[]; let start=sorted[0], prev=sorted[0]; for(let i=1;i<=sorted.length;i++){ if(sorted[i]===prev+1){prev=sorted[i]; continue;} ranges.push(`${String(start).padStart(2,'0')}:00~${String((prev+1)%24).padStart(2,'0')}:00`); start=prev=sorted[i]; } return ranges.join(', '); }
+
+
+function initTariffAdmin(){
+  const box=$('tariffInfo');
+  if(!box || typeof TARIFFS==='undefined') return;
+  const touCount=TARIFFS.filter(t=>t.type==='tou').length;
+  const flatCount=TARIFFS.filter(t=>t.type==='flat').length;
+  box.innerHTML=`<div class="table-wrap"><table class="report-table"><tbody>
+    <tr><th>현재 요금표 기준</th><td>${tariffVersionText()} 시행</td></tr>
+    <tr><th>탑재 계약종별</th><td>${TARIFFS.length}개 (시간대별 ${touCount}개, 단일요금 ${flatCount}개)</td></tr>
+    <tr><th>계절 기준</th><td>${tariffSeasonBasisText()}</td></tr>
+    <tr><th>관리 방식</th><td>요금 변경 시 database.js의 TARIFFS 데이터와 TARIFF_VERSION을 갱신</td></tr>
+  </tbody></table></div>${kepcoTimeGuideHtml()}`;
+}
 
 function copyElementText(id){const el=$(id); if(!el) return; navigator.clipboard?.writeText(el.innerText).then(()=>alert('복사했습니다.')).catch(()=>alert('복사에 실패했습니다.'));}
 function copySection(btn){const h=btn.closest('h4'); let txt=h.innerText.replace('복사','').trim(); let next=h.nextElementSibling; if(next) txt+='\n'+next.innerText; navigator.clipboard?.writeText(txt).then(()=>alert('복사했습니다.')).catch(()=>alert('복사에 실패했습니다.'));}
