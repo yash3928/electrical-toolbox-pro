@@ -165,7 +165,7 @@ function renderSavingReport(){
     const results=equipmentItems.map(it=>({item:it, calc:calcItem(it,tariff)}));
     const total=results.reduce((a,x)=>{a.oldKwh+=x.calc.oldKwh; a.newKwh+=x.calc.newKwh; a.saveKwh+=x.calc.saveKwh; a.saveMoney+=x.calc.saveMoney; return a},{oldKwh:0,newKwh:0,saveKwh:0,saveMoney:0});
     total.saveRate=total.oldKwh?total.saveKwh/total.oldKwh*100:0;
-    $('savingResult').innerHTML=`<div class="card" id="savingReport"><h3>전력절감 검토 결과</h3><div class="actions report-actions"><button class="secondary" onclick="copyElementText('savingReport')">전체 결과 복사</button><button class="secondary" onclick="printSavingReport()">PDF로 열기/저장</button><button class="secondary" onclick="exportSavingExcel()">엑셀로 저장</button></div><div class="basis">계약종별: ${esc(tariff.label)} · 설비별 산정기간 적용</div>${rateTable(tariff)}${installTable(results)}${operationTable(results)}${conditionTable(results)}${effectTable(results,total)}${basisDetails(results)}</div>`;
+    $('savingResult').innerHTML=`<div class="card" id="savingReport"><h3>전력절감 검토 결과</h3><div class="actions report-actions"><button class="secondary" onclick="copyElementText('savingReport')">전체 결과 복사</button><button class="secondary" onclick="printSavingReport()">PDF로 열기/저장</button><button class="secondary" onclick="exportSavingExcel()">엑셀로 저장</button></div><div class="basis">계약종별: ${esc(tariff.label)} · 설비별 산정기간 적용</div>${rateTable(tariff)}${installTable(results)}${conditionTable(results)}${effectTable(results,total)}${basisDetails(results)}</div>`;
     $('savingResult').classList.remove('hidden');
   }catch(e){alert(e.message)}
 }
