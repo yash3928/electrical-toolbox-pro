@@ -267,7 +267,13 @@ function clearTariffPdfResult(){
   const box=$('tariffPdfResult'); if(box){box.innerHTML=''; box.classList.add('hidden');}
 }
 
-function normalizeTariffText(s){return String(s||'').replace(/\s+/g,'').replace(/[()ⅠⅡⅢ]/g,m=>({'(':'',' )':'','Ⅰ':'1','Ⅱ':'2','Ⅲ':'3'}[m]||m));}
+function normalizeTariffText(s){
+  return String(s||'')
+    .replace(/[ⅠⅡⅢ]/g,m=>({'Ⅰ':'1','Ⅱ':'2','Ⅲ':'3'}[m]||m))
+    .replace(/[\s\u00a0·ㆍ,，.\-_/()（）\[\]{}]/g,'')
+    .replace(/전력/g,'')
+    .toLowerCase();
+}
 function findTariffEffectiveDate(text){
   const m = text.match(/(20\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일\s*시행/);
   if(!m) return '';
@@ -279,16 +285,83 @@ async function extractPdfText(file){
   const data = new Uint8Array(await file.arrayBuffer());
   const pdf = await pdfjsLib.getDocument({data}).promise;
   let text='';
+  const pages=[];
   for(let p=1;p<=pdf.numPages;p++){
     const page=await pdf.getPage(p);
     const content=await page.getTextContent();
-    text += `\n--- page ${p} ---\n` + content.items.map(x=>x.str).join(' ');
+    const items=content.items.map(x=>({str:x.str, x:x.transform?.[4]||0, y:x.transform?.[5]||0})).filter(x=>String(x.str).trim());
+    const rows=[];
+    items.sort((a,b)=>Math.abs(b.y-a.y)>3?b.y-a.y:a.x-b.x).forEach(it=>{
+      let row=rows.find(r=>Math.abs(r.y-it.y)<3);
+      if(!row){row={y:it.y, items:[]}; rows.push(row);}
+      row.items.push(it);
+    });
+    const lines=rows.sort((a,b)=>b.y-a.y).map(r=>r.items.sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ').trim()).filter(Boolean);
+    pages.push({page:p, lines});
+    text += `\n--- page ${p} ---\n` + lines.join('\n');
   }
-  return text;
+  return {text,pages};
+}
+function labelKeywords(label){
+  const raw=String(label||'').replace(/[ⅠⅡⅢ]/g,m=>({'Ⅰ':'1','Ⅱ':'2','Ⅲ':'3'}[m]||m));
+  const kind=(raw.match(/(일반용|산업용|교육용|농사용|가로등|심야|전기자동차)/)||[])[1]||'';
+  const ab=(raw.match(/[\(（]([갑을ABC])?[\)）]/)||[])[1]||'';
+  const voltage=(raw.match(/고압\s*[ABC]?|저압/)||[])[0]||'';
+  const choice=(raw.match(/선택\s*[123]/)||[])[0]||'';
+  const variant=normalizeTariffText([kind,ab,voltage,choice].join(''));
+  return {full:normalizeTariffText(label), variant, parts:[kind,ab,voltage,choice].filter(Boolean).map(normalizeTariffText)};
+}
+function looseLabelDetected(normalizedText,label){
+  const k=labelKeywords(label);
+  if(k.full && normalizedText.includes(k.full)) return true;
+  if(k.variant && normalizedText.includes(k.variant)) return true;
+  if(k.parts.length>=3 && k.parts.every(part=>normalizedText.includes(part))) return true;
+  return false;
+}
+function numberVariants(n){
+  const v=Number(n);
+  if(!isFinite(v)) return [];
+  const fixed1=(Math.round(v*10)/10).toFixed(1);
+  const int=String(Math.round(v));
+  const comma=Math.round(v).toLocaleString('ko-KR');
+  return Array.from(new Set([String(n), fixed1, fixed1.replace(/\.0$/,''), int, comma]));
+}
+function numberPresent(text,n){
+  return numberVariants(n).some(v=>text.includes(v));
+}
+function tariffNumbers(t){
+  const out=[t.basic];
+  if(t.type==='tou'){
+    ['summer','springAutumn','winter'].forEach(s=>['light','mid','peak'].forEach(k=>out.push(t.energy[s][k])));
+  }else{
+    ['summer','springAutumn','winter'].forEach(s=>out.push(t.energy[s]));
+  }
+  return out.filter(v=>v!==undefined&&v!==null);
 }
 function detectTariffLabels(text){
   const nt=normalizeTariffText(text);
-  return TARIFFS.filter(t=>nt.includes(normalizeTariffText(t.label))).map(t=>({id:t.id,label:t.label,type:t.type}));
+  return TARIFFS.map(t=>{
+    const labelHit=looseLabelDetected(nt,t.label);
+    const nums=tariffNumbers(t);
+    const matchedNums=nums.filter(v=>numberPresent(text,v)).length;
+    const ratio=nums.length?matchedNums/nums.length:0;
+    return {id:t.id,label:t.label,type:t.type,labelHit,matchedNums,totalNums:nums.length,ratio};
+  }).filter(d=>d.labelHit || d.ratio>=0.7)
+    .sort((a,b)=>(b.labelHit-a.labelHit)||(b.ratio-a.ratio)||a.label.localeCompare(b.label,'ko'));
+}
+function buildTariffUpdateDraft(effective,detected,text,fileName){
+  return {
+    schema:'electrical-toolbox-pro-tariff-update-draft-v1',
+    fileName,
+    analyzedAt:new Date().toISOString(),
+    detectedEffectiveDate:effective,
+    currentTariffVersion:tariffVersionText(),
+    suggestedTariffVersion:effective && !effective.includes('실패') ? effective : tariffVersionText(),
+    detectedTariffCount:detected.length,
+    detectedTariffs:detected,
+    instruction:'이 결과는 database.js 자동 교체본이 아니라 갱신 보조 자료입니다. 감지된 계약종별과 원문 단가를 확인한 뒤 TARIFF_VERSION 및 TARIFFS를 갱신하세요.',
+    textPreview:text.slice(0,12000)
+  };
 }
 function downloadTextFile(filename, text){
   const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
@@ -300,31 +373,27 @@ async function analyzeTariffPdf(){
   if(!file) return alert('분석할 한전 요금표 PDF를 선택하세요.');
   if(!box) return;
   box.classList.remove('hidden');
-  box.innerHTML='<div class="basis">PDF 텍스트를 분석하는 중입니다...</div>';
+  box.innerHTML='<div class="basis">PDF 표·텍스트를 분석하는 중입니다...</div>';
   try{
-    const text=await extractPdfText(file);
+    const extracted=await extractPdfText(file);
+    const text=extracted.text;
     const effective=findTariffEffectiveDate(text)||'시행일 자동 인식 실패';
     const detected=detectTariffLabels(text);
-    const payload={
-      analyzedAt:new Date().toISOString(),
-      fileName:file.name,
-      currentTariffVersion:tariffVersionText(),
-      detectedEffectiveDate:effective,
-      detectedTariffCount:detected.length,
-      detectedTariffs:detected,
-      note:'이 파일은 갱신 보조용입니다. PDF 인식값을 반드시 확인한 뒤 database.js의 TARIFF_VERSION 및 TARIFFS에 반영하세요.',
-      textPreview:text.slice(0,5000)
-    };
-    const json=JSON.stringify(payload,null,2);
+    const draft=buildTariffUpdateDraft(effective,detected,text,file.name);
+    const detectedRows=detected.map(d=>`<tr><td>${esc(d.id)}</td><td>${esc(d.label)}</td><td>${d.type==='tou'?'시간대별':'단일'}</td><td>${d.labelHit?'감지':'보조감지'}</td><td>${d.matchedNums}/${d.totalNums}</td></tr>`).join('') || '<tr><td colspan="5">감지된 계약종별이 없습니다. PDF 원문 텍스트를 다운로드해 확인하세요.</td></tr>';
+    const json=JSON.stringify(draft,null,2);
     box.innerHTML=`<h4>PDF 분석 결과</h4><div class="table-wrap"><table class="report-table"><tbody>
       <tr><th>파일명</th><td>${esc(file.name)}</td></tr>
       <tr><th>현재 요금표</th><td>${tariffVersionText()} 시행</td></tr>
       <tr><th>PDF 인식 기준일</th><td>${esc(effective)}</td></tr>
       <tr><th>감지 계약종별</th><td>${detected.length}개</td></tr>
     </tbody></table></div>
-    <div class="basis">PDF 자동 인식은 보조 기능입니다. 단가 적용 전 반드시 한전 원문과 미리보기 값을 대조하세요.</div>
-    <details open><summary>감지된 계약종별 보기</summary><div class="table-wrap"><table class="report-table"><thead><tr><th>ID</th><th>계약종별</th><th>구분</th></tr></thead><tbody>${detected.map(d=>`<tr><td>${esc(d.id)}</td><td>${esc(d.label)}</td><td>${d.type==='tou'?'시간대별':'단일'}</td></tr>`).join('') || '<tr><td colspan="3">감지된 계약종별이 없습니다.</td></tr>'}</tbody></table></div></details>
-    <div class="actions"><button class="secondary" type="button" onclick='downloadTextFile("tariff-pdf-analysis.json", ${JSON.stringify(json)})'>분석 결과 다운로드</button></div>`;
+    <div class="basis">PDF 표 추출은 갱신 보조 기능입니다. <b>적용 전 한전 원문 단가와 미리보기 값을 반드시 대조</b>하세요. 현재 단계에서는 GitHub Pages 보안상 database.js를 직접 덮어쓰지 않고 갱신 보조 파일을 생성합니다.</div>
+    <details open><summary>감지된 계약종별 보기</summary><div class="table-wrap"><table class="report-table"><thead><tr><th>ID</th><th>계약종별</th><th>구분</th><th>감지방식</th><th>현재 DB 단가 대조</th></tr></thead><tbody>${detectedRows}</tbody></table></div></details>
+    <div class="actions">
+      <button class="secondary" type="button" onclick='downloadTextFile("tariff-update-draft.json", ${JSON.stringify(json)})'>갱신 보조 JSON 다운로드</button>
+      <button class="secondary" type="button" onclick='downloadTextFile("tariff-pdf-text.txt", ${JSON.stringify(text)})'>PDF 원문 텍스트 다운로드</button>
+    </div>`;
   }catch(e){
     box.innerHTML=`<div class="basis">PDF 분석 실패: ${esc(e.message)}</div>`;
   }
