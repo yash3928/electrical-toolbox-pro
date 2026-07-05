@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Electrical Toolbox Pro - KEC 기반 전기 실무 보조 툴</title>
+  <link rel="stylesheet" href="style.css?v=7.8.2" />
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <p class="eyebrow">KEC Edition · Ver 7.8.2</p>
+      <h1>⚡ Electrical Toolbox Pro</h1>
+      <p class="sub">KEC 기반 전기 실무 보조 툴</p>
+    </header>
+
+    <nav class="tabs" aria-label="메뉴">
+      <button class="tab active" data-tab="material">부하 기준 자재 선정</button>
+      <button class="tab" data-tab="conduit">전선관 부속 선정</button>
+      <button class="tab" data-tab="cable">케이블 자재 선정</button>
+      <button class="tab" data-tab="terminalBlock">단자대·터미널 선정</button>
+      <button class="tab" data-tab="saving">전력절감 검토</button>
+    </nav>
+
+    <section id="material" class="panel active">
+      <div class="card">
+        <h2>부하 기준 자재 선정</h2>
+        <p class="help">부하용량을 기준으로 설계전류를 계산하고, KEC 검토와 국내 표준 자재 추천을 함께 표시합니다.</p>
+        <div class="grid">
+          <label>전원 방식
+            <select id="matPhase"><option value="three">삼상 380V</option><option value="single">단상 220V</option></select>
+          </label>
+          <label>입력 방식
+            <select id="matInputMode"><option value="direct">직접 입력</option><option value="motor">모터(kW/HP)</option></select>
+          </label>
+          <label id="matDirectWrap">부하용량(kW)
+            <input id="matKw" type="number" step="0.01" min="0" placeholder="예: 5.5" />
+          </label>
+          <label id="matMotorWrap" class="hidden">모터 용량
+            <select id="matMotor"></select>
+          </label>
+          <label>설치 상황
+            <select id="matLocation"><option value="indoorHidden">실내 매입/은폐</option><option value="indoorExposed">실내 노출/기계 주변</option><option value="outdoorWet">옥외/습기 우려</option></select>
+          </label>
+          <label>역률 PF
+            <input id="matPf" type="number" step="0.01" min="0.1" max="1" value="0.90" />
+          </label>
+          <label>모터 효율 η
+            <input id="matEff" type="number" step="0.01" min="0.1" max="1" value="0.85" />
+          </label>
+        </div>
+        <div class="actions"><button id="matBtn" class="primary">자재 추천</button><button id="matReset" class="secondary">초기화</button></div>
+      </div>
+      <div id="matResult" class="result hidden"></div>
+    </section>
+
+    <section id="conduit" class="panel">
+      <div class="card"><h2>전선관 부속 선정</h2><div class="grid"><label>전선관 종류<select id="conduitType"><option value="CD">CD관</option><option value="GW">GW 방수후렉시블관</option></select></label><label>전선관 규격<select id="conduitSize"></select></label></div><div class="actions"><button id="conduitBtn" class="primary">부속 추천</button></div></div>
+      <div id="conduitResult" class="result hidden"></div>
+    </section>
+
+    <section id="cable" class="panel">
+      <div class="card"><h2>케이블 자재 선정</h2><p class="help">대표 터미널 1개만 표시합니다. 단자 구멍 규격은 현장 기기 치수 확인 후 최종 적용하세요.</p><div class="grid"><label>케이블 종류<select id="cableType"><option value="CV_4C">CV 4C</option><option value="CV_3C">CV 3C</option><option value="CV_2C">CV 2C</option><option value="HIV_SINGLE">HIV/IV 단심</option></select></label><label>케이블 굵기<select id="cableSq"></select></label></div><div class="actions"><button id="cableBtn" class="primary">자재 추천</button></div></div>
+      <div id="cableResult" class="result hidden"></div>
+    </section>
+
+    <section id="terminalBlock" class="panel">
+      <div class="card"><h2>단자대·터미널 선정</h2><div class="grid"><label>단자대 정격<select id="tbAmp"></select></label><label>극수<select id="tbPole"><option>2P</option><option>3P</option><option selected>4P</option></select></label><label>케이블 굵기<select id="tbSq"></select></label></div><div class="actions"><button id="tbBtn" class="primary">선정</button></div></div>
+      <div id="tbResult" class="result hidden"></div>
+    </section>
+
+    <section id="saving" class="panel">
+      <div class="card">
+        <h2>전력절감 검토</h2>
+        <p class="help">기존값과 변경값을 비교합니다. 변경값이 기존과 같으면 <b>기존과 동일</b>을 체크하세요. 프로그램이 전력량 절감, 운전시간 변경, 복합 절감을 자동 판별합니다.</p>
+        <div class="grid">
+          <label class="full">계약종별
+            <select id="saveTariff"></select>
+          </label>
+          <p class="help full">설비별 산정일수와 계절 기준을 개별로 입력합니다.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>설비 입력</h3>
+        <label class="full eq-name-label">설비명<input id="eqName" type="text" placeholder="예: 유량조정조 교반기" /></label>
+
+        <div class="compare-grid input-compare">
+          <div class="compare-col">
+            <h4>기존 조건</h4>
+            <label>기존 부하(kW)<input id="oldKw" type="number" min="0" step="0.01" placeholder="예: 5.5" /></label>
+            <label>기존 대수<input id="oldCount" type="number" min="0" step="1" value="1" /></label>
+            <label>기존 가동시간(분/시간)<input id="oldRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
+          </div>
+
+          <div class="compare-col">
+            <h4>변경 조건</h4>
+            <label class="field-title">변경 부하(kW) <span class="same-inline"><input id="sameKw" type="checkbox" checked /> 기존과 동일</span></label>
+            <label id="newKwWrap"><input id="newKw" type="number" min="0" step="0.01" placeholder="예: 5.5" /></label>
+            <label class="field-title">변경 대수 <span class="same-inline"><input id="sameCount" type="checkbox" checked /> 기존과 동일</span></label>
+            <label id="newCountWrap"><input id="newCount" type="number" min="0" step="1" value="1" /></label>
+            <label class="field-title">변경 가동시간(분/시간) <span class="same-inline"><input id="sameRunMin" type="checkbox" checked /> 기존과 동일</span></label>
+            <label id="newRunMinWrap"><input id="newRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
+          </div>
+        </div>
+
+        <div class="period-box">
+          <label class="checkline"><input id="eqAllYear" type="checkbox" checked /> 연중운전(365일)</label>
+          <div id="eqPeriodCustom" class="grid hidden">
+            <label>산정일수<input id="eqCalcDays" type="number" min="1" step="1" value="90" /></label>
+            <label>계절 기준
+              <select id="eqSeason">
+                <option value="summer">여름철</option>
+                <option value="springAutumn" selected>봄·가을철</option>
+                <option value="winter">겨울철</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <label class="full note-label">비고
+          <input id="eqNote" type="text" placeholder="예: 인버터 제어(60Hz→45Hz), LED 교체, 대수 조정(4→3대)" />
+        </label>
+      </div>
+
+      <div class="card">
+        <h3>가동시간 선택</h3>
+        <p class="help">시작시간과 종료시간을 선택해 가동 구간을 추가합니다. 선택하지 않은 경우 가동시간 없음으로 처리됩니다.</p>
+        <div id="timeSelectors" class="time-selectors"></div>
+        <div class="actions"><button id="addEquip" class="primary">설비 추가</button><button id="clearEquipInput" class="secondary">입력 초기화</button></div>
+      </div>
+
+      <div id="equipmentList" class="card hidden"></div>
+      <div class="actions"><button id="calcSaving" class="primary">전력절감 검토 결과 산출</button><button id="resetSaving" class="secondary">전체 초기화</button></div>
+      <div id="savingResult" class="result hidden"></div>
+    </section>
+
+    <section class="notice"><strong>주의</strong> 본 도구는 KEC, 한전 요금표, 국내 표준 자재 기준을 활용한 실무 보조용입니다. 최종 설계·시공 전 최신 규정, 포설조건, 제조사 치수, 사내 기준을 확인하세요.</section>
+  </main>
+  <script src="database.js?v=7.8.2"></script>
+  <script src="script.js?v=7.8.2"></script>
+</body>
+</html>
