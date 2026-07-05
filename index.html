@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Electrical Toolbox Pro - KEC 기반 전기 실무 보조 툴</title>
-  <link rel="stylesheet" href="style.css?v=7.4" />
+  <link rel="stylesheet" href="style.css?v=7.5" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
-      <p class="eyebrow">KEC Edition · Ver 7.4</p>
+      <p class="eyebrow">KEC Edition · Ver 7.5</p>
       <h1>⚡ Electrical Toolbox Pro</h1>
       <p class="sub">KEC 기반 전기 실무 보조 툴</p>
     </header>
@@ -83,29 +83,39 @@
 
       <div class="card">
         <h3>설비 입력</h3>
-        <div class="grid">
-          <label class="full">설비명<input id="eqName" type="text" placeholder="예: 유량조정조 교반기" /></label>
-          <label>기존 부하(kW)<input id="oldKw" type="number" min="0" step="0.01" placeholder="예: 5.5" /></label>
-          <label>기존 대수<input id="oldCount" type="number" min="0" step="1" value="1" /></label>
-          <label>기존 가동시간(분/시간)<input id="oldRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
+        <label class="full eq-name-label">설비명<input id="eqName" type="text" placeholder="예: 유량조정조 교반기" /></label>
 
-          <label class="field-title">변경 부하(kW) <span class="same-inline"><input id="sameKw" type="checkbox" checked /> 기존과 동일</span></label>
-          <label id="newKwWrap"><input id="newKw" type="number" min="0" step="0.01" placeholder="예: 5.5" /></label>
-          <label class="field-title">변경 대수 <span class="same-inline"><input id="sameCount" type="checkbox" checked /> 기존과 동일</span></label>
-          <label id="newCountWrap"><input id="newCount" type="number" min="0" step="1" value="1" /></label>
-          <label class="field-title">변경 가동시간(분/시간) <span class="same-inline"><input id="sameRunMin" type="checkbox" checked /> 기존과 동일</span></label>
-          <label id="newRunMinWrap"><input id="newRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
+        <div class="compare-grid input-compare">
+          <div class="compare-col">
+            <h4>기존 조건</h4>
+            <label>기존 부하(kW)<input id="oldKw" type="number" min="0" step="0.01" placeholder="예: 5.5" /></label>
+            <label>기존 대수<input id="oldCount" type="number" min="0" step="1" value="1" /></label>
+            <label>기존 가동시간(분/시간)<input id="oldRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
+          </div>
 
-          <label>산정일수
-            <input id="eqCalcDays" type="number" min="1" step="1" value="365" />
-          </label>
-          <label>계절 기준
-            <select id="eqSeason">
-              <option value="summer">여름철</option>
-              <option value="springAutumn" selected>봄·가을철</option>
-              <option value="winter">겨울철</option>
-            </select>
-          </label>
+          <div class="compare-col">
+            <h4>변경 조건</h4>
+            <label class="field-title">변경 부하(kW) <span class="same-inline"><input id="sameKw" type="checkbox" checked /> 기존과 동일</span></label>
+            <label id="newKwWrap"><input id="newKw" type="number" min="0" step="0.01" placeholder="예: 5.5" /></label>
+            <label class="field-title">변경 대수 <span class="same-inline"><input id="sameCount" type="checkbox" checked /> 기존과 동일</span></label>
+            <label id="newCountWrap"><input id="newCount" type="number" min="0" step="1" value="1" /></label>
+            <label class="field-title">변경 가동시간(분/시간) <span class="same-inline"><input id="sameRunMin" type="checkbox" checked /> 기존과 동일</span></label>
+            <label id="newRunMinWrap"><input id="newRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
+          </div>
+        </div>
+
+        <div class="period-box">
+          <label class="checkline"><input id="eqAllYear" type="checkbox" checked /> 연중운전(365일)</label>
+          <div id="eqPeriodCustom" class="grid hidden">
+            <label>산정일수<input id="eqCalcDays" type="number" min="1" step="1" value="90" /></label>
+            <label>계절 기준
+              <select id="eqSeason">
+                <option value="summer">여름철</option>
+                <option value="springAutumn" selected>봄·가을철</option>
+                <option value="winter">겨울철</option>
+              </select>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -123,7 +133,7 @@
 
     <section class="notice"><strong>주의</strong> 본 도구는 KEC, 한전 요금표, 국내 표준 자재 기준을 활용한 실무 보조용입니다. 최종 설계·시공 전 최신 규정, 포설조건, 제조사 치수, 사내 기준을 확인하세요.</section>
   </main>
-  <script src="database.js?v=7.4"></script>
-  <script src="script.js?v=7.4"></script>
+  <script src="database.js?v=7.5"></script>
+  <script src="script.js?v=7.5"></script>
 </body>
 </html>
