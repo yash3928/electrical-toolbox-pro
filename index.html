@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Electrical Toolbox Pro - KEC 기반 전기 실무 보조 툴</title>
-  <link rel="stylesheet" href="style.css?v=7.3" />
+  <link rel="stylesheet" href="style.css?v=7.4" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
-      <p class="eyebrow">KEC Edition · Ver 7.3</p>
+      <p class="eyebrow">KEC Edition · Ver 7.4</p>
       <h1>⚡ Electrical Toolbox Pro</h1>
       <p class="sub">KEC 기반 전기 실무 보조 툴</p>
     </header>
@@ -77,7 +77,7 @@
           <label class="full">계약종별
             <select id="saveTariff"></select>
           </label>
-          <p class="help full">설비별 산정기간은 설비 입력란에서 개별로 설정합니다. 기본은 연중운전(365일)입니다.</p>
+          <p class="help full">설비별 산정일수와 계절 기준을 개별로 입력합니다.</p>
         </div>
       </div>
 
@@ -96,15 +96,22 @@
           <label class="field-title">변경 가동시간(분/시간) <span class="same-inline"><input id="sameRunMin" type="checkbox" checked /> 기존과 동일</span></label>
           <label id="newRunMinWrap"><input id="newRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
 
-          <label class="full checkline"><input id="eqAllYear" type="checkbox" checked /> 연중운전(365일)</label>
-          <label id="eqStartDateWrap">운영 시작일<input id="eqStartDate" type="date" value="2026-01-01" /></label>
-          <label id="eqEndDateWrap">운영 종료일<input id="eqEndDate" type="date" value="2026-12-31" /></label>
+          <label>산정일수
+            <input id="eqCalcDays" type="number" min="1" step="1" value="365" />
+          </label>
+          <label>계절 기준
+            <select id="eqSeason">
+              <option value="summer">여름철</option>
+              <option value="springAutumn" selected>봄·가을철</option>
+              <option value="winter">겨울철</option>
+            </select>
+          </label>
         </div>
       </div>
 
       <div class="card">
         <h3>가동시간 선택</h3>
-        <p class="help">시간은 1시간 단위로 선택합니다. 선택하지 않으면 24시간 가동으로 봅니다.</p>
+        <p class="help">시작시간과 종료시간을 선택해 가동 구간을 추가합니다. 선택하지 않으면 24시간 가동으로 계산합니다.</p>
         <div id="timeSelectors" class="time-selectors"></div>
         <div class="actions"><button id="addEquip" class="primary">설비 추가</button><button id="clearEquipInput" class="secondary">입력 초기화</button></div>
       </div>
@@ -116,7 +123,7 @@
 
     <section class="notice"><strong>주의</strong> 본 도구는 KEC, 한전 요금표, 국내 표준 자재 기준을 활용한 실무 보조용입니다. 최종 설계·시공 전 최신 규정, 포설조건, 제조사 치수, 사내 기준을 확인하세요.</section>
   </main>
-  <script src="database.js?v=7.3"></script>
-  <script src="script.js?v=7.3"></script>
+  <script src="database.js?v=7.4"></script>
+  <script src="script.js?v=7.4"></script>
 </body>
 </html>

@@ -4,3 +4,5 @@
 .field-title{font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:0}
 .same-inline{display:inline-flex;align-items:center;gap:5px;color:var(--text);font-weight:700;font-size:12px;white-space:nowrap}
 .same-inline input{width:auto;height:auto;margin:0}
+.range-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin:8px 0}.range-list{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.range-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 9px;background:#f8fafc;font-size:12px;font-weight:700}.range-chip button{border:0;background:transparent;font-weight:900;cursor:pointer}.time-guide{grid-column:1/-1;border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+@media(max-width:760px){.range-row{grid-template-columns:1fr 1fr}.range-row .mini{grid-column:1/-1}}
