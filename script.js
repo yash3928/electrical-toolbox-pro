@@ -1692,3 +1692,256 @@ document.addEventListener('DOMContentLoaded',()=>{
   updateSavingScopeUi();
   renderEquipmentItems();
 });
+
+
+/* ===== Ver 5.1 overrides: 설비별 개별 조건, 계절별 시간 입력, 365일 연산 ===== */
+function v51SeasonDays(){ return {summer:92, springAutumn:153, winter:120}; }
+function v51SeasonLabel(season){ return getSeasonFullLabel(season).replace(/\(.+?\)/g,''); }
+function v51PickRange(item, prefix, season){
+  const key = prefix + (season==='summer'?'Summer':season==='springAutumn'?'Spring':'Winter');
+  return (item && item[key] && String(item[key]).trim()) ? item[key] : (item && item[prefix]) || '';
+}
+function v51RangeOrFull(text){ return String(text||'').trim() || '00:00-24:00'; }
+function v51Input(id){ return document.getElementById(id); }
+function v51Number(id){ return Number((v51Input(id)?.value || 0)); }
+function v51Text(id){ return (v51Input(id)?.value || '').trim(); }
+function v51WireTimePickerForDynamic(){
+  document.querySelectorAll('.time-pick-btn').forEach(btn=>{
+    if(btn.dataset.v51Bound) return;
+    btn.dataset.v51Bound = '1';
+    btn.addEventListener('click', ()=>openTimePicker(btn.dataset.target));
+  });
+}
+function v51SeasonTimeInputs(prefix, title){
+  return `<details class="season-time-box"><summary>${title} 계절별 시간대 별도 입력(선택)</summary>
+    <p class="help small">비워두면 위 공통 가동 시간을 사용합니다. 계절별 운전시간이 다른 경우에만 입력하세요.</p>
+    <div class="grid">
+      <label>여름철(6~8월)<input id="${prefix}Summer" type="text" placeholder="예: 15:00-21:00"/><button type="button" class="mini time-pick-btn" data-target="${prefix}Summer">시간 선택</button></label>
+      <label>봄·가을철(3~5월,9~10월)<input id="${prefix}Spring" type="text" placeholder="예: 08:00-11:00, 13:00-15:00"/><button type="button" class="mini time-pick-btn" data-target="${prefix}Spring">시간 선택</button></label>
+      <label>겨울철(11~2월)<input id="${prefix}Winter" type="text" placeholder="예: 09:00-12:00, 16:00-19:00"/><button type="button" class="mini time-pick-btn" data-target="${prefix}Winter">시간 선택</button></label>
+    </div>
+  </details>`;
+}
+function v51BuildEquipmentBox(){
+  const box = v51Input('equipmentBox');
+  if(!box) return;
+  box.innerHTML = `
+    <h3>설비 설치현황 및 개선 조건</h3>
+    <p class="help small">설비별로 부하용량, 대수, 가동시간을 직접 확인해 입력합니다. 설비를 추가하면 입력란은 자동 초기화됩니다.</p>
+    <div class="grid">
+      <label>설비명<input id="equipmentName" type="text" placeholder="예: 유량조정조 교반기" /></label>
+      <label>부하용량(kW/대)<input id="equipmentKw" type="number" step="0.001" min="0" placeholder="예: 5.5" /></label>
+      <label>대수<input id="equipmentCount" type="number" step="1" min="1" value="1" /></label>
+    </div>
+    <div id="equipTimeFields">
+      <h4>운전시간 개선 조건</h4>
+      <div class="grid">
+        <label>기존 가동 시간<input id="equipOldRun" type="text" placeholder="미입력 시 24시간"/><button type="button" class="mini time-pick-btn" data-target="equipOldRun">시간 선택</button></label>
+        <label>변경 가동 시간<input id="equipNewRun" type="text" placeholder="미입력 시 24시간"/><button type="button" class="mini time-pick-btn" data-target="equipNewRun">시간 선택</button></label>
+        <label>기존 정지 시간(분/시간, 선택)<input id="equipOldStop" type="number" step="1" min="0" max="59" placeholder="예: 30" /></label>
+        <label>변경 정지 시간(분/시간, 선택)<input id="equipNewStop" type="number" step="1" min="0" max="59" placeholder="예: 40" /></label>
+      </div>
+      ${v51SeasonTimeInputs('equipOldRun','기존')}
+      ${v51SeasonTimeInputs('equipNewRun','변경')}
+    </div>
+    <div id="equipPowerFields" class="hidden">
+      <h4>전력량 절감 조건</h4>
+      <div class="grid">
+        <label>기존전력(kW/대)<input id="equipBeforeKw" type="number" step="0.001" min="0" placeholder="예: 5.5" /></label>
+        <label>개선후 전력(kW/대)<input id="equipAfterKw" type="number" step="0.001" min="0" placeholder="예: 4.0" /></label>
+        <label>가동 시간<input id="equipSaveRun" type="text" placeholder="미입력 시 24시간"/><button type="button" class="mini time-pick-btn" data-target="equipSaveRun">시간 선택</button></label>
+      </div>
+      ${v51SeasonTimeInputs('equipSaveRun','전력량 절감')}
+    </div>
+    <div class="actions compact"><button type="button" id="equipmentAddBtn" class="secondary">설비 추가</button></div>
+    <div id="equipmentList" class="equipment-list muted">등록된 설비가 없습니다.</div>`;
+  v51Input('equipmentAddBtn')?.addEventListener('click', addEquipmentItem);
+  v51WireTimePickerForDynamic();
+}
+function updateSavingScopeUi(){
+  const scope = v51Input('savingScope')?.value || 'load';
+  const savingType = v51Input('savingType')?.value || 'time';
+  const isEquipment = scope === 'equipment';
+  v51Input('equipmentBox')?.classList.toggle('hidden', !isEquipment);
+  v51Input('loadNameWrap')?.classList.toggle('hidden', isEquipment);
+  v51Input('loadKwTimeWrap')?.classList.toggle('hidden', isEquipment && savingType === 'time');
+  v51Input('timeSavingBox')?.classList.toggle('hidden', savingType !== 'time');
+  v51Input('powerSavingBox')?.classList.toggle('hidden', savingType !== 'power');
+  v51Input('equipTimeFields')?.classList.toggle('hidden', savingType !== 'time');
+  v51Input('equipPowerFields')?.classList.toggle('hidden', savingType !== 'power');
+}
+function v51ClearEquipmentInputs(){
+  ['equipmentName','equipmentKw','equipmentCount','equipOldRun','equipNewRun','equipOldStop','equipNewStop','equipOldRunSummer','equipOldRunSpring','equipOldRunWinter','equipNewRunSummer','equipNewRunSpring','equipNewRunWinter','equipBeforeKw','equipAfterKw','equipSaveRun','equipSaveRunSummer','equipSaveRunSpring','equipSaveRunWinter'].forEach(id=>{ const el=v51Input(id); if(el) el.value=''; });
+  if(v51Input('equipmentCount')) v51Input('equipmentCount').value='1';
+}
+function addEquipmentItem(){
+  const savingType = v51Input('savingType')?.value || 'time';
+  const name = v51Text('equipmentName');
+  const kw = v51Number('equipmentKw');
+  const count = Math.max(1, Math.round(v51Number('equipmentCount') || 1));
+  if(!name){ alert('설비명을 입력하세요.'); return; }
+  if(!isFinite(kw) || kw <= 0){ alert('부하용량(kW/대)을 입력하세요.'); return; }
+  const item = {type:savingType, name, kw, count};
+  if(savingType === 'time'){
+    Object.assign(item, {
+      oldRun:v51Text('equipOldRun'), newRun:v51Text('equipNewRun'), oldStop:v51Number('equipOldStop'), newStop:v51Number('equipNewStop'),
+      oldRunSummer:v51Text('equipOldRunSummer'), oldRunSpring:v51Text('equipOldRunSpring'), oldRunWinter:v51Text('equipOldRunWinter'),
+      newRunSummer:v51Text('equipNewRunSummer'), newRunSpring:v51Text('equipNewRunSpring'), newRunWinter:v51Text('equipNewRunWinter')
+    });
+  }else{
+    const beforeKw = v51Number('equipBeforeKw');
+    const afterKw = v51Number('equipAfterKw');
+    if(beforeKw <= 0){ alert('기존전력(kW/대)을 입력하세요.'); return; }
+    if(afterKw < 0 || afterKw > beforeKw){ alert('개선후 전력은 0 이상, 기존전력 이하로 입력하세요.'); return; }
+    Object.assign(item, {
+      beforeKw, afterKw, saveRun:v51Text('equipSaveRun'),
+      saveRunSummer:v51Text('equipSaveRunSummer'), saveRunSpring:v51Text('equipSaveRunSpring'), saveRunWinter:v51Text('equipSaveRunWinter')
+    });
+  }
+  ETP_EQUIPMENT_ITEMS.push(item);
+  v51ClearEquipmentInputs();
+  renderEquipmentItems();
+}
+function renderEquipmentItems(){
+  const box = v51Input('equipmentList');
+  if(!box) return;
+  if(!ETP_EQUIPMENT_ITEMS.length){ box.innerHTML = '등록된 설비가 없습니다.'; return; }
+  const rows = ETP_EQUIPMENT_ITEMS.map((item, idx)=>{
+    const total = Number(item.kw || 0) * Number(item.count || 0);
+    const sub = item.type === 'power' ? `전력량 절감 · 기존 ${num(item.beforeKw,3)}kW/대 → 개선 ${num(item.afterKw,3)}kW/대` : `운전시간 개선 · ${num(item.kw,3)}kW × ${item.count}대 = ${num(total,3)}kW`;
+    return `<div class="equipment-row"><div><strong>${escapeHtml(item.name)}</strong><br>${sub}</div><button type="button" class="secondary" onclick="removeEquipmentItem(${idx})">삭제</button></div>`;
+  }).join('');
+  const totalKw = getEquipmentTotalKw();
+  box.innerHTML = rows + `<div class="equipment-row"><div><strong>총 설치 부하용량</strong><br><b>${num(totalKw,3)}kW</b></div></div>`;
+}
+function equipmentInstallHtml(){
+  if(!ETP_EQUIPMENT_ITEMS.length) return '';
+  const lis = ETP_EQUIPMENT_ITEMS.map(item=>`<li>${escapeHtml(item.name)} : ${num(item.kw,3)}kW × ${item.count}대 = ${num(item.kw*item.count,3)}kW</li>`).join('');
+  return `<ol>${lis}</ol><div class="calc">총 설치 부하용량 = ${ETP_EQUIPMENT_ITEMS.map(i=>`${num(i.kw,3)}×${i.count}`).join(' + ')} = <b>${num(getEquipmentTotalKw(),3)}kW</b></div>`;
+}
+function v51CalcItemMonthTime(item, season, days, tariff, climateRate, fuelRate){
+  const rates = getTouRates(tariff, season);
+  const kw = Number(item.kw||0) * Number(item.count||0);
+  const oldText = v51PickRange(item,'oldRun',season);
+  const newText = v51PickRange(item,'newRun',season);
+  const oldHours = classifiedHoursWithStop(oldText, season, item.oldStop||0);
+  const newHours = classifiedHoursWithStop(newText, season, item.newStop||0);
+  const before = calcByTouHours(kw, days, oldHours, rates);
+  const after = calcByTouHours(kw, days, newHours, rates);
+  const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+  const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+  return {item, kw, oldText, newText, oldHours, newHours, before, after, saveKwh: before.kwh-after.kwh, saveMoney: beforeFee.total-afterFee.total};
+}
+function v51CalcItemMonthPower(item, season, days, tariff, climateRate, fuelRate){
+  const rates = getTouRates(tariff, season);
+  const beforeKw = Number(item.beforeKw||0) * Number(item.count||0);
+  const afterKw = Number(item.afterKw||0) * Number(item.count||0);
+  const runText = v51PickRange(item,'saveRun',season);
+  const hours = classifiedHoursWithStop(runText, season, 0);
+  const before = calcByTouHours(beforeKw, days, hours, rates);
+  const after = calcByTouHours(afterKw, days, hours, rates);
+  const beforeFee = calcVariableTotal(before.energyCharge, before.kwh, climateRate, fuelRate);
+  const afterFee = calcVariableTotal(after.energyCharge, after.kwh, climateRate, fuelRate);
+  return {item, beforeKw, afterKw, runText, hours, before, after, saveKwh: before.kwh-after.kwh, saveMoney: beforeFee.total-afterFee.total};
+}
+function v51AnnualForItems(items, mode, tariff, climateRate, fuelRate){
+  const sd = v51SeasonDays();
+  const detail=[]; let annualKwh=0, annualMoney=0;
+  Object.entries(sd).forEach(([season, days])=>{
+    let saveKwh=0, saveMoney=0;
+    items.forEach(item=>{
+      const r = mode==='time' ? v51CalcItemMonthTime(item, season, 1, tariff, climateRate, fuelRate) : v51CalcItemMonthPower(item, season, 1, tariff, climateRate, fuelRate);
+      saveKwh += r.saveKwh * days;
+      saveMoney += r.saveMoney * days;
+    });
+    annualKwh += saveKwh; annualMoney += saveMoney; detail.push({season, days, saveKwh, saveMoney});
+  });
+  return {annualKwh, annualMoney, detail};
+}
+function seasonDetailHtml(annual){
+  return annual.detail.map(d=>`${getSeasonFullLabel(d.season)} ${d.days}일: ${num(d.saveKwh)}kWh, ${won(d.saveMoney)}`).join('<br>');
+}
+function v51SumResults(results){
+  const sum = {kwh:0, energyCharge:0, lightKwh:0, midKwh:0, peakKwh:0};
+  results.forEach(r=>{ sum.kwh+=r.kwh||0; sum.energyCharge+=r.energyCharge||0; sum.lightKwh+=r.lightKwh||0; sum.midKwh+=r.midKwh||0; sum.peakKwh+=r.peakKwh||0; });
+  return sum;
+}
+function v51EquipmentTimeRows(monthResults, annual, season){
+  const lines = monthResults.map(r=>`<li><b>${escapeHtml(r.item.name)}</b> ${num(r.kw,3)}kW<br>기존: ${formatRangeBreakdown('', r.oldText, season, r.item.oldStop||0).replace(/^<br>/,'')}<br>변경: ${formatRangeBreakdown('', r.newText, season, r.item.newStop||0).replace(/^<br>/,'')}<br>월 절감 ${num(r.saveKwh)}kWh, ${won(r.saveMoney)}</li>`).join('');
+  return `<div class="report-box"><h4>보고 형식 요약</h4><ol><li><b>설치 현황</b>${equipmentInstallHtml()}</li><li><b>설비별 운전 조건 및 절감량</b><ol>${lines}</ol></li><li><b>절감 효과</b><br>연 절감전력량 : ${num(annual.annualKwh)}kWh/년<br>연 절감금액 : ${won(annual.annualMoney)}</li></ol><div class="calc"><b>계산식</b><br>실제 가동시간 = 운전범위 시간 × (60 - 정지분/시간) ÷ 60<br>일 사용량 = 부하용량 × 실제 가동시간<br>연 절감량 = 계절별 일 절감량 × 계절별 일수(여름 92일, 봄·가을 153일, 겨울 120일)</div></div>`;
+}
+function v51EquipmentPowerRows(monthResults, annual, season){
+  const lines = monthResults.map(r=>`<li><b>${escapeHtml(r.item.name)}</b> ${num(r.item.kw,3)}kW × ${r.item.count}대<br>기존전력 ${num(r.beforeKw,3)}kW → 개선후 ${num(r.afterKw,3)}kW<br>${formatRangeBreakdown('가동', r.runText, season, 0)}<br>월 절감 ${num(r.saveKwh)}kWh, ${won(r.saveMoney)}</li>`).join('');
+  return `<div class="report-box"><h4>보고 형식 요약</h4><ol><li><b>설치 현황</b>${equipmentInstallHtml()}</li><li><b>설비별 전력량 절감 조건</b><ol>${lines}</ol></li><li><b>절감 효과</b><br>연 절감전력량 : ${num(annual.annualKwh)}kWh/년<br>연 절감금액 : ${won(annual.annualMoney)}</li></ol><div class="calc"><b>계산식</b><br>절감전력 = 기존전력 - 개선후 전력<br>일 절감량 = 절감전력 × 가동시간<br>연 절감량 = 계절별 일 절감량 × 계절별 일수</div></div>`;
+}
+function v51ReportCommon(title, rows, report, basis, copy){
+  v51Input('energyResult').innerHTML = `<h3>${title}</h3><div class="resultGrid">${rows}</div>${report}<div class="basis">${basis}</div><button class="copyBtn" data-copy="${escapeHtml(copy.join('\n'))}">결과 복사하기</button>`;
+  v51Input('energyResult').classList.remove('hidden'); bindCopyButtons();
+}
+function calculateEnergy(){
+  try{
+    updateTariffInputs();
+    const tariff = getTariff(); const season = v51Input('tariffSeason').value; const rates = getTouRates(tariff, season);
+    const days = getVal('energyDays'); const contractKw = getVal('contractKw'); const climateRate = getVal('climateRate'); const fuelRate = getVal('fuelRate');
+    const basicCharge = contractKw * (tariff.basic || 0);
+    const savingType = v51Input('savingType')?.value || 'time'; const scope = v51Input('savingScope')?.value || 'load';
+    if(days <= 0) throw new Error('월 운전일수를 입력하세요.');
+    if(scope === 'equipment'){
+      const items = ETP_EQUIPMENT_ITEMS.filter(i=>i.type===savingType);
+      if(!items.length) throw new Error('현재 절감 방식에 해당하는 설비를 1개 이상 추가하세요.');
+      if(savingType === 'time'){
+        const m = items.map(i=>v51CalcItemMonthTime(i, season, days, tariff, climateRate, fuelRate));
+        const before = v51SumResults(m.map(x=>x.before)); const after = v51SumResults(m.map(x=>x.after));
+        const saveKwh = m.reduce((a,b)=>a+b.saveKwh,0); const saveMoney = m.reduce((a,b)=>a+b.saveMoney,0);
+        const saveRate = before.kwh>0 ? saveKwh/before.kwh*100 : 0; const annual = v51AnnualForItems(items,'time',tariff,climateRate,fuelRate);
+        const rows = `<div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div>
+        <div class="item"><div class="k">총 설치 부하용량</div><div class="v">${num(getEquipmentTotalKw(),3)} kW</div></div><div class="item"><div class="k">기본요금 참고</div><div class="v">${won(basicCharge)}</div></div>
+        <div class="item"><div class="k">기존 월 사용량</div><div class="v">${num(before.kwh)} kWh</div></div><div class="item"><div class="k">변경 월 사용량</div><div class="v">${num(after.kwh)} kWh</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div><div class="item"><div class="k">연 절감전력량</div><div class="v">${num(annual.annualKwh)} kWh</div></div>
+        <div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div><div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div><div class="item"><div class="k">연 절감금액</div><div class="v">${won(annual.annualMoney)}</div></div>
+        <div class="item full"><div class="k">기존 시간대별 사용량</div><div class="v">${formatKwhBreakdown(before)}</div></div><div class="item full"><div class="k">변경 시간대별 사용량</div><div class="v">${formatKwhBreakdown(after)}</div></div><div class="item full"><div class="k">계절별 연간 계산</div><div class="v">${seasonDetailHtml(annual)}</div></div>`;
+        v51ReportCommon('설비별 운전시간 개선 절감효과', rows, v51EquipmentTimeRows(m, annual, season), '설비별 운전시간 개선: 설비마다 입력한 운전범위와 정지시간을 개별 적용한 뒤 합산합니다.', ['■ 설비별 운전시간 개선 절감효과',equipmentInstallText(),`연 절감전력량: ${num(annual.annualKwh)}kWh`,`연 절감금액: ${won(annual.annualMoney)}`]);
+      }else{
+        const m = items.map(i=>v51CalcItemMonthPower(i, season, days, tariff, climateRate, fuelRate));
+        const before = v51SumResults(m.map(x=>x.before)); const after = v51SumResults(m.map(x=>x.after));
+        const saveKwh = m.reduce((a,b)=>a+b.saveKwh,0); const saveMoney = m.reduce((a,b)=>a+b.saveMoney,0); const annual = v51AnnualForItems(items,'power',tariff,climateRate,fuelRate);
+        const beforeKw = m.reduce((a,b)=>a+b.beforeKw,0), afterKw = m.reduce((a,b)=>a+b.afterKw,0); const saveKw = beforeKw-afterKw; const saveRate = beforeKw>0?saveKw/beforeKw*100:0;
+        const rows = `<div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div>
+        <div class="item"><div class="k">기존전력 합계</div><div class="v">${num(beforeKw,3)} kW</div></div><div class="item"><div class="k">개선후 전력 합계</div><div class="v">${num(afterKw,3)} kW</div></div><div class="item"><div class="k">절감전력</div><div class="v">${num(saveKw,3)} kW</div></div><div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div>
+        <div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div><div class="item"><div class="k">연 절감전력량</div><div class="v">${num(annual.annualKwh)} kWh</div></div><div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div><div class="item"><div class="k">연 절감금액</div><div class="v">${won(annual.annualMoney)}</div></div><div class="item full"><div class="k">계절별 연간 계산</div><div class="v">${seasonDetailHtml(annual)}</div></div>`;
+        v51ReportCommon('설비별 전력량 절감효과', rows, v51EquipmentPowerRows(m, annual, season), '설비별 전력량 절감: 설비마다 기존전력과 개선후 전력을 개별 입력해 합산합니다.', ['■ 설비별 전력량 절감효과',equipmentInstallText(),`연 절감전력량: ${num(annual.annualKwh)}kWh`,`연 절감금액: ${won(annual.annualMoney)}`]);
+      }
+      return;
+    }
+    /* 부하별은 기존 입력 구조를 유지하되 연간은 365일 계절별 자동계산 */
+    if(savingType === 'time'){
+      const kw=getVal('loadKwTime'); if(kw<=0) throw new Error('부하용량(kW)을 입력하세요.');
+      const oldText=v51Text('oldRunRanges'), newText=v51Text('newRunRanges'), oldStop=getVal('oldStopMinutes'), newStop=getVal('newStopMinutes');
+      const oldHours=classifiedHoursWithStop(oldText,season,oldStop), newHours=classifiedHoursWithStop(newText,season,newStop); validateHours(oldHours,'기존 가동 시간'); validateHours(newHours,'변경 가동 시간');
+      const before=calcByTouHours(kw,days,oldHours,rates), after=calcByTouHours(kw,days,newHours,rates); const beforeFee=calcVariableTotal(before.energyCharge,before.kwh,climateRate,fuelRate), afterFee=calcVariableTotal(after.energyCharge,after.kwh,climateRate,fuelRate);
+      const saveKwh=before.kwh-after.kwh, saveMoney=beforeFee.total-afterFee.total, saveRate=before.kwh>0?saveKwh/before.kwh*100:0;
+      const annual=v51AnnualForItems([{type:'time',name:v51Text('loadName')||'개별 부하',kw,count:1,oldRun:oldText,newRun:newText,oldStop,newStop}], 'time', tariff, climateRate, fuelRate);
+      const rows=`<div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div><div class="item"><div class="k">부하용량</div><div class="v">${num(kw,3)} kW</div></div><div class="item"><div class="k">기본요금 참고</div><div class="v">${won(basicCharge)}</div></div><div class="item"><div class="k">기존 월 사용량</div><div class="v">${num(before.kwh)} kWh</div></div><div class="item"><div class="k">변경 월 사용량</div><div class="v">${num(after.kwh)} kWh</div></div><div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div><div class="item"><div class="k">연 절감전력량</div><div class="v">${num(annual.annualKwh)} kWh</div></div><div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div><div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div><div class="item"><div class="k">연 절감금액</div><div class="v">${won(annual.annualMoney)}</div></div><div class="item full"><div class="k">가동 시간 자동분류</div><div class="v">${formatRangeBreakdown('기존',oldText,season,oldStop)}<br><br>${formatRangeBreakdown('변경',newText,season,newStop)}</div></div><div class="item full"><div class="k">계절별 연간 계산</div><div class="v">${seasonDetailHtml(annual)}</div></div>`;
+      const report=buildReportHtmlForTime('load',v51Text('loadName'),kw,oldText,newText,oldStop,newStop,days,before,after,saveKwh,saveMoney,annual).replace(/정지시간 : 0분\/시간<br>/g,'');
+      v51ReportCommon('부하별 운전시간 개선 절감효과', rows, report, '부하별 운전시간 개선: 입력한 운전범위와 정지시간을 반영합니다. 연간은 365일 기준으로 산정합니다.', ['■ 부하별 운전시간 개선 절감효과',`부하용량: ${num(kw,3)}kW`,`연 절감전력량: ${num(annual.annualKwh)}kWh`,`연 절감금액: ${won(annual.annualMoney)}`]);
+    }else{
+      const beforeKw=getVal('beforeKw'), afterKw=getVal('afterKw'); if(beforeKw<=0) throw new Error('기존전력(kW)을 입력하세요.'); if(afterKw<0 || afterKw>beforeKw) throw new Error('개선후 전력은 기존전력 이하로 입력하세요.');
+      const runText=v51Text('saveRunRanges'); const hours=classifiedHoursWithStop(runText,season,0); validateHours(hours,'가동 시간');
+      const before=calcByTouHours(beforeKw,days,hours,rates), after=calcByTouHours(afterKw,days,hours,rates); const beforeFee=calcVariableTotal(before.energyCharge,before.kwh,climateRate,fuelRate), afterFee=calcVariableTotal(after.energyCharge,after.kwh,climateRate,fuelRate);
+      const saveKw=beforeKw-afterKw, saveKwh=before.kwh-after.kwh, saveMoney=beforeFee.total-afterFee.total, saveRate=saveKw/beforeKw*100; const annual=v51AnnualForItems([{type:'power',name:'개별 부하',kw:beforeKw,count:1,beforeKw,afterKw,saveRun:runText}], 'power', tariff, climateRate, fuelRate);
+      const rows=`<div class="item full"><div class="k">적용 단가</div><div class="v">${tariff.label}<br>${getSeasonFullLabel(season)} · ${rateSummary(tariff, season, rates)}</div></div><div class="item"><div class="k">기존전력</div><div class="v">${num(beforeKw,3)} kW</div></div><div class="item"><div class="k">개선후 전력</div><div class="v">${num(afterKw,3)} kW</div></div><div class="item"><div class="k">절감전력</div><div class="v">${num(saveKw,3)} kW</div></div><div class="item"><div class="k">절감률</div><div class="v">${num(saveRate,1)}%</div></div><div class="item"><div class="k">월 절감전력량</div><div class="v">${num(saveKwh)} kWh</div></div><div class="item"><div class="k">연 절감전력량</div><div class="v">${num(annual.annualKwh)} kWh</div></div><div class="item"><div class="k">월 절감금액</div><div class="v">${won(saveMoney)}</div></div><div class="item"><div class="k">연 절감금액</div><div class="v">${won(annual.annualMoney)}</div></div><div class="item full"><div class="k">가동 시간 자동분류</div><div class="v">${formatRangeBreakdown('가동',runText,season,0)}</div></div><div class="item full"><div class="k">계절별 연간 계산</div><div class="v">${seasonDetailHtml(annual)}</div></div>`;
+      const report=`<div class="report-box"><h4>보고 형식 요약</h4><ol><li><b>개선 개요</b><br>기존전력 ${num(beforeKw,3)}kW → 개선후 전력 ${num(afterKw,3)}kW</li><li><b>절감 효과</b><br>절감전력 ${num(saveKw,3)}kW, 절감률 ${num(saveRate,1)}%</li><li><b>연간 효과</b><br>연 절감전력량 ${num(annual.annualKwh)}kWh/년, 연 절감금액 ${won(annual.annualMoney)}</li></ol><div class="calc"><b>계산식</b><br>절감전력 = 기존전력 - 개선후 전력<br>일 절감량 = 절감전력 × 가동시간<br>연 절감량 = 계절별 일 절감량 × 계절별 일수</div></div>`;
+      v51ReportCommon('부하별 전력량 절감효과', rows, report, '부하별 전력량 절감: 기존전력과 개선후 전력 차이를 가동시간에 적용합니다. 연간은 365일 기준으로 산정합니다.', ['■ 부하별 전력량 절감효과',`절감전력: ${num(saveKw,3)}kW`,`연 절감전력량: ${num(annual.annualKwh)}kWh`,`연 절감금액: ${won(annual.annualMoney)}`]);
+    }
+  }catch(e){ showEnergyError(e.message); }
+}
+function resetEnergy(){
+  if(v51Input('savingType')) v51Input('savingType').value='time'; if(v51Input('savingScope')) v51Input('savingScope').value='load';
+  ['contractKw','loadKwTime','loadName','beforeKw','afterKw','oldRunRanges','newRunRanges','oldStopMinutes','newStopMinutes','saveRunRanges'].forEach(id=>{ const el=v51Input(id); if(el) el.value=''; });
+  ETP_EQUIPMENT_ITEMS=[]; v51ClearEquipmentInputs(); renderEquipmentItems(); updateSavingMode(); updateSavingScopeUi(); v51Input('energyResult')?.classList.add('hidden'); updateTariffInputs();
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const v = document.querySelector('.version'); if(v) v.textContent='Ver 5.1';
+  v51BuildEquipmentBox(); updateSavingScopeUi(); renderEquipmentItems();
+  ['savingScope','savingType'].forEach(id=>v51Input(id)?.addEventListener('change', updateSavingScopeUi));
+});
