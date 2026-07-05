@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const qsa = sel => Array.from(document.querySelectorAll(sel));
 const seasonsKo = {summer:'여름철(6월~8월)', springAutumn:'봄·가을철(3월~5월, 9월~10월)', winter:'겨울철(11월~2월)'};
-const seasonsShortKo = {summer:'여름철', springAutumn:'봄·가을철', winter:'겨울철'};
+const seasonsShortKo = {summer:'여름철', springAutumn:'봄·가을철', winter:'겨울철', nonWinter:'봄·여름·가을철'};
 const loadKo = {light:'경부하', mid:'중간부하', peak:'최대부하'};
 let equipmentItems = [];
 const timeRanges = {};
@@ -98,7 +98,7 @@ function selectedHours(key){const v=selectedHoursRaw(key); return v.length ? v :
 function addTimeRange(key){const start=Number($('start_'+key).value), end=Number($('end_'+key).value); if(end<=start) return alert('종료시간은 시작시간보다 커야 합니다.'); if(start<0||end>24) return alert('시간 범위를 확인하세요.'); timeRanges[key].push({start,end}); mergeRanges(key); renderRangeList(key); syncSameTimes(false)}
 function mergeRanges(key){const arr=(timeRanges[key]||[]).sort((a,b)=>a.start-b.start); const out=[]; arr.forEach(r=>{const last=out[out.length-1]; if(last&&r.start<=last.end) last.end=Math.max(last.end,r.end); else out.push({...r});}); timeRanges[key]=out;}
 function rangeLabel(r){return `${String(r.start).padStart(2,'0')}:00~${String(r.end).padStart(2,'0')}:00`}
-function renderRangeList(key){const el=$('ranges_'+key); if(!el) return; const arr=timeRanges[key]||[]; el.innerHTML=arr.length ? arr.map((r,i)=>`<span class="range-chip">${rangeLabel(r)} <button type="button" onclick="removeTimeRange('${key}',${i})">×</button></span>`).join('') : '<span class="small">-</span>'}
+function renderRangeList(key){const el=$('ranges_'+key); if(!el) return; const arr=timeRanges[key]||[]; el.innerHTML=arr.length ? arr.map((r,i)=>`<span class="range-chip">${rangeLabel(r)} <button type="button" onclick="removeTimeRange('${key}',${i})">×</button></span>`).join('') : '<span class="small">미선택 시 24시간</span>'}
 function removeTimeRange(key,i){timeRanges[key].splice(i,1); renderRangeList(key); syncSameTimes(false)}
 function selectAllHours(key){timeRanges[key]=[{start:0,end:24}]; renderRangeList(key); syncSameTimes();}
 function clearHours(key){timeRanges[key]=[]; renderRangeList(key); syncSameTimes();}
@@ -138,12 +138,35 @@ function seasonOfDate(d){const m=d.getMonth()+1; if([6,7,8].includes(m)) return 
 function opGroupOfSeason(season){return season==='winter'?'winter':'nonWinter'}
 const ANNUAL_DAYS = {summer:92, springAutumn:153, winter:120};
 function getItemDays(item){return item.allYear ? 365 : Math.max(1,Math.floor(Number(item.calcDays)||365))}
-function itemSeasonDays(item){return item.allYear ? {...ANNUAL_DAYS} : {summer:0, springAutumn:0, winter:0, [item.season]:getItemDays(item)}}
-function periodLabel(item){return item.allYear ? '연중운전 365일' : `${seasonsShortKo[item.season]} ${getItemDays(item)}일`}
+function itemSeasonDays(item){
+  const days=getItemDays(item);
+  if(item.allYear) return {...ANNUAL_DAYS};
+  if(days>=245){
+    return {
+      summer: days * ANNUAL_DAYS.summer / 365,
+      springAutumn: days * ANNUAL_DAYS.springAutumn / 365,
+      winter: days * ANNUAL_DAYS.winter / 365
+    };
+  }
+  if(item.season==='nonWinter'){
+    return {
+      summer: days * ANNUAL_DAYS.summer / (ANNUAL_DAYS.summer + ANNUAL_DAYS.springAutumn),
+      springAutumn: days * ANNUAL_DAYS.springAutumn / (ANNUAL_DAYS.summer + ANNUAL_DAYS.springAutumn),
+      winter: 0
+    };
+  }
+  return {summer:0, springAutumn:0, winter:0, [item.season]:days};
+}
+function periodLabel(item){
+  const days=getItemDays(item);
+  if(item.allYear) return '연중운전 365일';
+  if(days>=245) return `연간운전 기준 (${days}일)`;
+  return `${seasonsShortKo[item.season]} ${days}일`;
+}
 function touKind(season,h){ if(h>=22||h<8) return 'light'; if(season==='winter'){ if((h>=9&&h<12)||(h>=16&&h<19)) return 'peak'; return 'mid'; } if(h>=15&&h<21) return 'peak'; return 'mid'; }
 function tariffById(){return TARIFFS.find(t=>t.id===$('saveTariff').value)||TARIFFS[0]}
 function rateFor(tariff,season,kind){ if(tariff.type==='tou') return tariff.energy[season][kind]; return tariff.energy[season]; }
-function itemHours(item,changed,opGroup){const raw=changed?(opGroup==='winter'?item.newWinter:item.newNonWinter):(opGroup==='winter'?item.oldWinter:item.oldNonWinter); return raw && raw.length ? raw : []}
+function itemHours(item,changed,opGroup){const raw=changed?(opGroup==='winter'?item.newWinter:item.newNonWinter):(opGroup==='winter'?item.oldWinter:item.oldNonWinter); return raw && raw.length ? raw : Array.from({length:24},(_,i)=>i)}
 function itemRunFactor(item,changed){const min=changed?item.newRunMin:item.oldRunMin; return (Number(min)||0)/60}
 function kwhBySeasonAndKind(item,changed,season,opGroup){ const hours=itemHours(item,changed,opGroup); const kw=(changed?item.newKw:item.oldKw)*(changed?item.newCount:item.oldCount); const f=itemRunFactor(item,changed); const out={light:0,mid:0,peak:0,total:0}; hours.forEach(h=>{const kind=touKind(season,h); out[kind]+=kw*f; out.total+=kw*f;}); return out; }
 function calcItem(item,tariff){
@@ -165,7 +188,7 @@ function renderSavingReport(){
     const results=equipmentItems.map(it=>({item:it, calc:calcItem(it,tariff)}));
     const total=results.reduce((a,x)=>{a.oldKwh+=x.calc.oldKwh; a.newKwh+=x.calc.newKwh; a.saveKwh+=x.calc.saveKwh; a.saveMoney+=x.calc.saveMoney; return a},{oldKwh:0,newKwh:0,saveKwh:0,saveMoney:0});
     total.saveRate=total.oldKwh?total.saveKwh/total.oldKwh*100:0;
-    $('savingResult').innerHTML=`<div class="card" id="savingReport"><h3>전력절감 검토 결과</h3><div class="actions report-actions"><button class="secondary" onclick="copyElementText('savingReport')">전체 결과 복사</button><button class="secondary" onclick="printSavingReport()">PDF로 열기/저장</button><button class="secondary" onclick="exportSavingExcel()">엑셀로 저장</button></div><div class="basis">계약종별: ${esc(tariff.label)} · 설비별 산정기간 적용</div>${rateTable(tariff)}${installTable(results)}${conditionTable(results)}${effectTable(results,total)}${basisDetails(results)}</div>`;
+    $('savingResult').innerHTML=`<div class="card" id="savingReport"><h3>전력절감 검토 결과</h3><div class="actions report-actions"><button class="secondary" onclick="copyElementText('savingReport')">전체 결과 복사</button><button class="secondary" onclick="printSavingReport()">PDF로 열기/저장</button><button class="secondary" onclick="exportSavingExcel()">엑셀로 저장</button></div><div class="basis">계약종별: ${esc(tariff.label)} · 설비별 산정기간 적용</div>${rateTable(tariff)}${conditionTable(results)}${effectTable(results,total)}${basisDetails(results)}</div>`;
     $('savingResult').classList.remove('hidden');
   }catch(e){alert(e.message)}
 }
@@ -173,29 +196,37 @@ function conditionText(kw,count){return `${num(kw,2)}kW × ${count}대 = ${num(k
 function installTable(results){return `<h4>1. 설치현황</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>No</th><th>설비명</th><th>산정기간</th><th>기존 조건</th><th>변경 조건</th><th>절감 구분</th><th>비고</th></tr></thead><tbody>${results.map((x,i)=>{const same=!powerChanged(x.item); const oldTxt=conditionText(x.item.oldKw,x.item.oldCount); const newTxt=same?'기존과 동일':conditionText(x.item.newKw,x.item.newCount); return `<tr><td class="center">${i+1}</td><td>${esc(x.item.name)}</td><td>${periodLabel(x.item)}</td><td class="right">${oldTxt}</td><td class="right">${newTxt}</td><td>${classifyItem(x.item)}</td><td>${x.item.note?esc(x.item.note):'-'}</td></tr>`}).join('')}</tbody></table></div>`}
 function operationText(item,group,changed,season){const hours=itemHours(item,changed,group); const f=itemRunFactor(item,changed); const by={light:[],mid:[],peak:[]}; hours.forEach(h=>by[touKind(season,h)].push(h)); const lines=['light','mid','peak'].filter(k=>by[k].length).map(k=>`${loadKo[k]} ${num(by[k].length*f,2)}h/일 (${compressHours(by[k])})`); const runMin=changed?item.newRunMin:item.oldRunMin; if(Number(runMin)<60) lines.push(`가동 ${runMin}분 / 정지 ${60-runMin}분`); return lines.join('<br>') || '가동시간 없음'}
 function actualRunHours(item,group,changed){return itemHours(item,changed,group).length*itemRunFactor(item,changed)}
-function conditionTable(results){
-  const rows=[];
-  results.forEach((x,i)=>{
-    const it=x.item;
-    const groups = it.allYear ? [
-      {label:'봄·가을철·여름철 기준(3월~10월)', season:'springAutumn', group:'nonWinter'},
-      {label:'겨울철 기준(11월~2월)', season:'winter', group:'winter'}
-    ] : [{label:seasonsKo[it.season], season:it.season, group:opGroupOfSeason(it.season)}];
-    groups.forEach((g,idx)=>{
-      const oldPower = conditionText(it.oldKw,it.oldCount);
-      const newPower = powerChanged(it) ? conditionText(it.newKw,it.newCount) : '기존과 동일';
-      const oldOp = operationText(it,g.group,false,g.season);
-      const newOp = hoursChanged(it) ? operationText(it,g.group,true,g.season) : '기존과 동일';
-      const dec = actualRunHours(it,g.group,false)-actualRunHours(it,g.group,true);
-      rows.push(`<tr>${idx===0?`<td rowspan="${groups.length}">${i+1}</td><td rowspan="${groups.length}">${esc(it.name)}</td><td rowspan="${groups.length}">${classifyItem(it)}</td>`:''}<td>${g.label}</td><td>${oldPower}<br>${oldOp}</td><td>${newPower}<br>${newOp}</td><td>${hoursChanged(it)?`${num(dec,2)}h/일`:'-'}</td>${idx===0?`<td rowspan="${groups.length}">${it.note?esc(it.note):'-'}</td>`:''}</tr>`);
-    });
+function conditionSummary(item, changed){
+  const lines=[];
+  lines.push(`부하: ${conditionText(changed?item.newKw:item.oldKw, changed?item.newCount:item.oldCount)}`);
+  const groups = item.allYear || getItemDays(item)>=245 || item.season==='nonWinter' ? [
+    {label:'봄·가을·여름(3월~10월)', season:'springAutumn', group:'nonWinter'},
+    {label:'겨울(11월~2월)', season:'winter', group:'winter'}
+  ] : [{label:seasonsKo[item.season], season:item.season, group:opGroupOfSeason(item.season)}];
+  groups.forEach(g=>{
+    const op=operationText(item,g.group,changed,g.season);
+    lines.push(`${g.label}: ${op}`);
   });
-  return `<h4>2. 절감 조건</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>No</th><th>설비명</th><th>절감 구분</th><th>기간/기준</th><th>기존 조건</th><th>변경 조건</th><th>가동시간 감소</th><th>비고</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
+  return lines.join('<br>');
 }
-function effectTable(results,total){return `<h4>3. 절감효과</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>설비명</th><th>기존 전력</th><th>변경 전력</th><th>연 절감전력</th><th>절감률</th><th>연 절감금액</th></tr></thead><tbody>${results.map(x=>`<tr><td>${esc(x.item.name)}</td><td>${num(x.item.oldKw*x.item.oldCount,2)}kW</td><td>${num(x.item.newKw*x.item.newCount,2)}kW</td><td class="bold">${num(x.calc.saveKwh,0)}kWh</td><td>${num(x.calc.saveRate,1)}%</td><td class="bold">${won(x.calc.saveMoney)}</td></tr>`).join('')}<tr><th>합계</th><th>-</th><th>-</th><th>${num(total.saveKwh,0)}kWh</th><th>${num(total.saveRate,1)}%</th><th>${won(total.saveMoney)}</th></tr></tbody></table></div>`}
-function seasonPeriod(s){return s==='summer'?'6월~8월':s==='springAutumn'?'3월~5월, 9월~10월':'11월~2월'}
+function runDecreaseSummary(item){
+  const groups = item.allYear || getItemDays(item)>=245 || item.season==='nonWinter' ? [
+    {label:'3~10월', group:'nonWinter'},
+    {label:'11~2월', group:'winter'}
+  ] : [{label:seasonsShortKo[item.season], group:opGroupOfSeason(item.season)}];
+  return groups.map(g=>{
+    const dec=actualRunHours(item,g.group,false)-actualRunHours(item,g.group,true);
+    return `${g.label}: ${num(dec,2)}h/일`;
+  }).join('<br>');
+}
+function conditionTable(results){
+  const rows=results.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.item.name)}</td><td>${periodLabel(x.item)}</td><td>${conditionSummary(x.item,false)}</td><td>${conditionSummary(x.item,true)}</td><td>${runDecreaseSummary(x.item)}</td><td class="bold">${num(x.calc.saveKwh,0)}kWh</td><td>${x.item.note?esc(x.item.note):'-'}</td></tr>`).join('');
+  return `<h4>1. 절감 조건</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>No</th><th>설비명</th><th>산정기간</th><th>기존 조건</th><th>변경 조건</th><th>가동시간 감소</th><th>절감전력량(kWh)</th><th>비고</th></tr></thead><tbody>${rows}</tbody></table></div>`
+}
+function effectTable(results,total){return `<h4>2. 절감효과</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>설비명</th><th>기존 사용전력</th><th>변경 사용전력</th><th>연 절감전력</th><th>절감률</th><th>연 절감금액</th></tr></thead><tbody>${results.map(x=>`<tr><td>${esc(x.item.name)}</td><td>${num(x.calc.oldKwh,0)}kWh</td><td>${num(x.calc.newKwh,0)}kWh</td><td class="bold">${num(x.calc.saveKwh,0)}kWh</td><td>${num(x.calc.saveRate,1)}%</td><td class="bold">${won(x.calc.saveMoney)}</td></tr>`).join('')}<tr><th>합계</th><th>${num(total.oldKwh,0)}kWh</th><th>${num(total.newKwh,0)}kWh</th><th>${num(total.saveKwh,0)}kWh</th><th>${num(total.saveRate,1)}%</th><th>${won(total.saveMoney)}</th></tr></tbody></table></div>`}
+function seasonPeriod(s){return s==='summer'?'6월~8월':s==='springAutumn'?'3월~5월, 9월~10월':s==='winter'?'11월~2월':'3월~10월'}
 function rateTable(tariff){const rows=['summer','springAutumn','winter'].map(s=>{if(tariff.type==='tou'){const e=tariff.energy[s]; return `<tr><td>${seasonsShortKo[s]}</td><td>${seasonPeriod(s)}</td><td>${e.light}</td><td>${e.mid}</td><td>${e.peak}</td></tr>`} return `<tr><td>${seasonsShortKo[s]}</td><td>${seasonPeriod(s)}</td><td colspan="3">${tariff.energy[s]}</td></tr>`}).join(''); return `<h4>적용 전력량 요금 단가</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>계절</th><th>적용기간</th><th>경부하</th><th>중간부하</th><th>최대부하</th></tr></thead><tbody>${rows}</tbody></table></div>`}
-function basisDetails(results){const basisRows=results.map(x=>`<tr><td>${esc(x.item.name)}</td><td>${periodLabel(x.item)}</td><td>${classifyItem(x.item)}</td><td>${x.item.note?esc(x.item.note):'-'}</td><td>부하(kW) × 대수 × 가동시간(h) × 가동분/60 × 산정일수</td></tr>`).join(''); return `<details><summary>계산근거 및 산정기준 보기</summary><div class="table-wrap"><table class="report-table"><thead><tr><th>설비명</th><th>산정기준</th><th>절감 구분</th><th>비고</th><th>계산식</th></tr></thead><tbody>${basisRows}</tbody></table></div><div class="basis">연 절감전력 = 기존 사용량 - 변경 사용량<br>연 절감금액 = 시간대별 절감전력량 × 한전 전력량요금 단가</div></details>`}
+function basisDetails(results){const basisRows=results.map(x=>`<tr><td>${esc(x.item.name)}</td><td>${periodLabel(x.item)}</td><td>${x.item.note?esc(x.item.note):'-'}</td><td>기존 사용전력 = 기존 부하(kW) × 기존 대수 × 기존 가동시간(h) × 가동분/60 × 산정일수<br>변경 사용전력 = 변경 부하(kW) × 변경 대수 × 변경 가동시간(h) × 가동분/60 × 산정일수</td></tr>`).join(''); return `<details><summary>계산근거 및 산정기준 보기</summary><div class="table-wrap"><table class="report-table"><thead><tr><th>설비명</th><th>산정기준</th><th>비고</th><th>계산식</th></tr></thead><tbody>${basisRows}</tbody></table></div><div class="basis">연 절감전력 = 기존 사용전력 - 변경 사용전력<br>연 절감금액 = 시간대별 절감전력량 × 한전 전력량요금 단가<br>직접 산정일수가 245일 이상이면 연간운전 계절비율을 적용하되, 입력한 산정일수 그대로 계산합니다.</div></details>`}
 function compressHours(hours){ if(!hours.length) return ''; const sorted=[...hours].sort((a,b)=>a-b); const ranges=[]; let start=sorted[0], prev=sorted[0]; for(let i=1;i<=sorted.length;i++){ if(sorted[i]===prev+1){prev=sorted[i]; continue;} ranges.push(`${String(start).padStart(2,'0')}:00~${String((prev+1)%24).padStart(2,'0')}:00`); start=prev=sorted[i]; } return ranges.join(', '); }
 
 function copyElementText(id){const el=$(id); if(!el) return; navigator.clipboard?.writeText(el.innerText).then(()=>alert('복사했습니다.')).catch(()=>alert('복사에 실패했습니다.'));}

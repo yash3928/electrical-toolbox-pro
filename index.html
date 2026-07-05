@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Electrical Toolbox Pro - KEC 기반 전기 실무 보조 툴</title>
-  <link rel="stylesheet" href="style.css?v=7.8.3" />
+  <link rel="stylesheet" href="style.css?v=8.0.1" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
-      <p class="eyebrow">KEC Edition · Ver 7.8.3</p>
+      <p class="eyebrow">KEC Edition · Ver 8.0.1</p>
       <h1>⚡ Electrical Toolbox Pro</h1>
       <p class="sub">KEC 기반 전기 실무 보조 툴</p>
     </header>
@@ -110,9 +110,10 @@
             <label>산정일수<input id="eqCalcDays" type="number" min="1" step="1" value="90" /></label>
             <label>계절 기준
               <select id="eqSeason">
-                <option value="summer">여름철</option>
-                <option value="springAutumn" selected>봄·가을철</option>
-                <option value="winter">겨울철</option>
+                <option value="summer">여름철 (90일)</option>
+                <option value="springAutumn" selected>봄·가을철 (150일)</option>
+                <option value="winter">겨울철 (120일)</option>
+                <option value="nonWinter">봄·여름·가을철 (245일)</option>
               </select>
             </label>
           </div>
@@ -125,7 +126,7 @@
 
       <div class="card">
         <h3>가동시간 선택</h3>
-        <p class="help">시작시간과 종료시간을 선택해 가동 구간을 추가합니다. 선택하지 않은 경우 가동시간 없음으로 처리됩니다.</p>
+        <p class="help">시작시간과 종료시간을 선택해 가동 구간을 추가합니다. 선택하지 않은 경우 24시간 가동으로 자동 환산됩니다.</p>
         <div id="timeSelectors" class="time-selectors"></div>
         <div class="actions"><button id="addEquip" class="primary">설비 추가</button><button id="clearEquipInput" class="secondary">입력 초기화</button></div>
       </div>
@@ -137,7 +138,7 @@
 
     <section class="notice"><strong>주의</strong> 본 도구는 KEC, 한전 요금표, 국내 표준 자재 기준을 활용한 실무 보조용입니다. 최종 설계·시공 전 최신 규정, 포설조건, 제조사 치수, 사내 기준을 확인하세요.</section>
   </main>
-  <script src="database.js?v=7.8.1.1"></script>
-  <script src="script.js?v=7.8.1.1"></script>
+  <script src="database.js?v=8.0.1"></script>
+  <script src="script.js?v=8.0.1"></script>
 </body>
 </html>
