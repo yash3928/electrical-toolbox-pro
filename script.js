@@ -2884,3 +2884,140 @@ document.addEventListener('DOMContentLoaded',()=>{
     const foot=document.querySelector('.notice'); if(foot) foot.innerHTML='<strong>주의</strong> 본 프로그램은 KEC 기준과 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 6.7는 자재선정 입력방식과 전력절감 검토 보고서 표기를 개선한 버전입니다. 실제 적용 전 현장 운전조건과 최신 요금 기준을 최종 확인하세요.';
   }, 0);
 });
+
+/* ===== Ver 6.8 overrides: 용어 변경/절감량/가동시간 감소 표기 ===== */
+function v68HoursDecreaseCell(it, seasonKind, basis){
+  if(!it || it.mode !== 'time') return '-';
+  const season = seasonKind === 'winter' ? 'winter' : (basis && basis !== 'annual' ? basis : 'springAutumn');
+  const oldRange = seasonKind === 'winter' ? (it.oldRangeWinter || it.oldRangeWarm || it.oldRange) : (it.oldRangeWarm || it.oldRange);
+  const newRange = seasonKind === 'winter' ? (it.newRangeWinter || it.newRangeWarm || it.newRange) : (it.newRangeWarm || it.newRange);
+  const oldH = v6HoursTotalFor(v6DefaultRange(oldRange), season, it.oldStop);
+  const newH = v6HoursTotalFor(v6DefaultRange(newRange), season, it.newStop);
+  const diff = oldH - newH;
+  if(Math.abs(diff) < 0.005) return '변동 없음';
+  return diff > 0 ? `${num(diff,2)} h/일 감소` : `${num(Math.abs(diff),2)} h/일 증가`;
+}
+function v6ConditionTable(items, basis){
+  const timeItems = items.filter(it=>it.mode === 'time');
+  if(!timeItems.length) return '';
+  let no = 0;
+  const rows = timeItems.map((it)=>{
+    no += 1;
+    if(basis === 'annual'){
+      return `<tr>${v67MergedCell(it,no,2)}<td>봄·여름·가을철(3월~10월)</td><td>${v65SeasonConditionCell(it,'warm','old')}</td><td>${v65SeasonConditionCell(it,'warm','new')}</td><td>${v68HoursDecreaseCell(it,'warm',basis)}</td></tr>`+
+             `<tr><td>겨울철(11월~2월)</td><td>${v65SeasonConditionCell(it,'winter','old')}</td><td>${v65SeasonConditionCell(it,'winter','new')}</td><td>${v68HoursDecreaseCell(it,'winter',basis)}</td></tr>`;
+    }
+    const oldR = basis==='winter' ? it.oldRangeWinter : it.oldRangeWarm;
+    const newR = basis==='winter' ? it.newRangeWinter : it.newRangeWarm;
+    const seasonKind = basis === 'winter' ? 'winter' : 'warm';
+    return `<tr><td>${no}</td><td>${escapeHtml(it.name)}</td><td>${v62BasisLabel(basis)}</td><td>${v62BriefBreakdown(v6DefaultRange(oldR), basis, it.oldStop)}</td><td>${v62BriefBreakdown(v6DefaultRange(newR), basis, it.newStop)}</td><td>${v68HoursDecreaseCell(it,seasonKind,basis)}</td></tr>`;
+  }).join('');
+  const note = basis==='annual'
+    ? '연간 자동 산정은 봄·여름·가을철(3~10월)과 겨울철(11~2월)의 운전조건을 구분하고, 금액은 여름철·봄가을철·겨울철 요금 기준을 각각 적용합니다.'
+    : `${v62BasisLabel(basis)} 기준으로 시간대를 분류합니다.`;
+  return `<h4>2. 운전시간 변경 조건</h4><p class="muted">${note}</p><div class="report-table-wrap"><table class="report-table"><thead><tr><th>No</th><th>설비명</th><th>구분</th><th>기존 조건</th><th>변경 조건</th><th>가동시간 감소</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function v6SavingTable(calc){
+  const rows = calc.itemTotals.map((r,i)=>{
+    const rate = r.beforeKwh > 0 ? (r.saveKwh / r.beforeKwh * 100) : 0;
+    return `<tr><td>${i+1}</td><td>${escapeHtml(r.item.name)}</td><td>${v6ModeLabel(r.item.mode)}</td><td class="num">${num(r.beforeKwh)}</td><td class="num">${num(r.afterKwh)}</td><td class="num"><b>${num(r.saveKwh)}</b></td><td class="num">${num(rate,1)}%</td><td class="num"><b>${won(r.saveMoney)}</b></td></tr>`;
+  }).join('');
+  const totalRate = calc.beforeKwh > 0 ? (calc.annualKwh / calc.beforeKwh * 100) : 0;
+  return `<h4>3. 설비별 절감 효과</h4><div class="report-table-wrap"><table class="report-table"><thead><tr><th>No</th><th>설비명</th><th>구분</th><th class="num">기존 사용량(kWh/년)</th><th class="num">변경 사용량(kWh/년)</th><th class="num">절감량(kWh/년)</th><th class="num">절감률</th><th class="num">절감금액(원/년)</th></tr></thead><tbody>${rows}<tr class="total-row"><td colspan="3">합계</td><td class="num">${num(calc.beforeKwh)}</td><td class="num">${num(calc.afterKwh)}</td><td class="num">${num(calc.annualKwh)}</td><td class="num">${num(totalRate,1)}%</td><td class="num">${won(calc.annualMoney)}</td></tr></tbody></table></div>`;
+}
+function v6BuildEnergyUi(){
+  const card = document.querySelector('#energy .card'); if(!card) return;
+  card.innerHTML = `
+    <h2>전력절감 검토</h2>
+    <p class="help">설비별 확인값을 입력하면 한전 시간대 요금을 자동 반영해 보고서 표 형식으로 출력합니다.</p>
+    <input type="hidden" id="tariffSeason" value="springAutumn" />
+    <input type="hidden" id="tariffLoadMode" value="tou" />
+    <input type="hidden" id="energyMode" value="saving" />
+    <input type="hidden" id="basicRate" value="0" />
+    <input type="hidden" id="energyRate" value="0" />
+    <select id="touAutoMode" class="hidden"><option value="manualKwh">직접입력</option></select>
+    <input type="hidden" id="lightHours" value="0" /><input type="hidden" id="midHours" value="0" /><input type="hidden" id="peakHours" value="0" />
+    <input type="hidden" id="lightKwh" value="0" /><input type="hidden" id="midKwh" value="0" /><input type="hidden" id="peakKwh" value="0" />
+    <input type="hidden" id="climateRate" value="9" /><input type="hidden" id="fuelRate" value="5" />
+    <div class="grid">
+      <label>계약종별<select id="tariffType"></select></label>
+      <label>산정 기준<select id="v6Basis"><option value="annual" selected>연간 자동 산정</option><option value="summer">여름철만 검토</option><option value="springAutumn">봄·가을철만 검토</option><option value="winter">겨울철만 검토</option></select></label>
+      <label>개선<select id="v6Mode"><option value="time" selected>운전시간 변경</option><option value="power">전력량 절감</option></select></label>
+    </div>
+    <div class="card soft" style="margin-top:14px">
+      <h3>설비 입력</h3>
+      <div class="grid">
+        <label>설비명<input id="v6Name" type="text" placeholder="예: 유량조정조 교반기" /></label>
+        <label id="v6KwWrap">부하용량(kW)<input id="v6Kw" type="number" step="0.001" min="0" placeholder="예: 5.5" /></label>
+        <label>대수<input id="v6Count" type="number" step="1" min="1" value="1" /></label>
+      </div>
+      <div id="v6TimeFields" style="margin-top:10px">
+        <div class="report-table-wrap"><table class="report-table"><thead><tr><th>구분</th><th>기존 가동 시간</th><th>변경 가동 시간</th></tr></thead><tbody>
+          <tr><td>봄·여름·가을철(3~10월)</td><td><input id="v6OldRangeWarm" type="text" placeholder="미입력 시 24시간"/><button type="button" class="mini time-pick-btn" data-target="v6OldRangeWarm">시간 선택</button></td><td><input id="v6NewRangeWarm" type="text" placeholder="미입력 시 24시간"/><button type="button" class="mini time-pick-btn" data-target="v6NewRangeWarm">시간 선택</button></td></tr>
+          <tr><td>겨울철(11~2월)</td><td><input id="v6OldRangeWinter" type="text" placeholder="미입력 시 24시간"/><button type="button" class="mini time-pick-btn" data-target="v6OldRangeWinter">시간 선택</button></td><td><input id="v6NewRangeWinter" type="text" placeholder="미입력 시 24시간"/><button type="button" class="mini time-pick-btn" data-target="v6NewRangeWinter">시간 선택</button></td></tr>
+        </tbody></table></div>
+        <div class="compact-grid" style="margin-top:10px"><label>기존 정지 시간(분/시간)<input id="v6OldStop" type="number" step="1" min="0" max="59" placeholder="예: 30" /></label><label>변경 정지 시간(분/시간)<input id="v6NewStop" type="number" step="1" min="0" max="59" placeholder="예: 40" /></label></div>
+      </div>
+      <div id="v6PowerFields" class="compact-grid hidden" style="margin-top:10px">
+        <label>기존전력(kW)<input id="v6BeforeKw" type="number" step="0.001" min="0" placeholder="예: 64" /></label>
+        <label>변경후 전력(kW)<input id="v6AfterKw" type="number" step="0.001" min="0" placeholder="예: 30" /></label>
+      </div>
+      <div class="actions compact"><button type="button" id="v6AddBtn" class="secondary">설비 추가</button></div>
+      <div id="v6ItemList"></div>
+    </div>
+    <div id="timeRangePicker" class="time-picker hidden"><div class="time-picker-head"><div><strong>가동 시간 클릭 선택</strong><p class="help small">시작 시간을 누른 뒤 종료 시간을 누르면 입력란에 자동 추가됩니다.</p></div><button type="button" id="timePickerClose" class="mini secondary">닫기</button></div><div class="picker-status" id="pickerStatus">입력란을 선택하세요.</div><div class="time-grid" id="timeSlotGrid"></div><div class="actions compact"><button type="button" id="timePickerClear" class="secondary">선택 초기화</button></div></div>
+    <div id="touTimeInfo" class="full"></div>
+    <div class="actions"><button id="energyBtn" class="primary">보고서 계산</button><button id="energyResetBtn" class="secondary">초기화</button></div>`;
+  initTariffSelect();
+  v6E('v6Mode')?.addEventListener('change', v6UpdateMode);
+  v6E('v6AddBtn')?.addEventListener('click', v6AddItem);
+  v6E('energyBtn')?.addEventListener('click', v6Calculate);
+  v6E('energyResetBtn')?.addEventListener('click', v6Reset);
+  v6E('v6Basis')?.addEventListener('change', ()=>{ const b=v6E('v6Basis').value; if(b!=='annual' && v6E('tariffSeason')) v6E('tariffSeason').value=b; v62UpdateTimeGuide(); updateTariffInputs(); });
+  v6E('tariffType')?.addEventListener('change', ()=>{ updateTariffInputs(); v62UpdateTimeGuide(); });
+  initTimePicker(); v51WireTimePickerForDynamic(); v6UpdateMode(); v6RenderItems(); updateTariffInputs(); v62UpdateTimeGuide();
+}
+function v6AddItem(){
+  const mode = v6E('v6Mode').value;
+  const name = v6Text('v6Name');
+  const count = Math.max(1, Math.round(v6Val('v6Count')||1));
+  if(!name){alert('설비명을 입력하세요.');return;}
+  if(mode==='power'){
+    const beforeKw=v6Val('v6BeforeKw'), afterKw=v6Val('v6AfterKw');
+    if(beforeKw<=0){alert('기존전력(kW)을 입력하세요.');return;}
+    if(afterKw<0 || afterKw>beforeKw){alert('변경후 전력은 0 이상, 기존전력 이하로 입력하세요.');return;}
+    V6_ITEMS.push({mode,name,count,kw:beforeKw,beforeKw,afterKw,runRange:'00:00-24:00'});
+  }else{
+    const kw=v6Val('v6Kw');
+    if(kw<=0){alert('부하용량(kW)을 입력하세요.');return;}
+    V6_ITEMS.push({
+      mode,name,count,kw,
+      oldRangeWarm:v6Text('v6OldRangeWarm'), newRangeWarm:v6Text('v6NewRangeWarm'),
+      oldRangeWinter:v6Text('v6OldRangeWinter'), newRangeWinter:v6Text('v6NewRangeWinter'),
+      oldStop:v6Val('v6OldStop'), newStop:v6Val('v6NewStop')
+    });
+  }
+  v6ClearInputs(); v6RenderItems();
+}
+function v6Calculate(){
+  try{
+    if(!V6_ITEMS.length) throw new Error('설비를 1개 이상 추가하세요.');
+    const tariff = getTariff();
+    const climateRate = Number(v6E('climateRate')?.value || 9);
+    const fuelRate = Number(v6E('fuelRate')?.value || 5);
+    const basis = v6E('v6Basis')?.value || 'annual';
+    const calc = v6AnnualCalc(V6_ITEMS, basis, tariff, climateRate, fuelRate);
+    const rateText = v67BasisText(basis);
+    const summary = `<div class="report-summary"><div class="report-sentence">전력절감 검토 결과, ${basis==='annual'?'연간':'해당 기간'} 약 ${num(calc.annualKwh)}kWh의 전력 절감과 약 ${won(calc.annualMoney)}의 전기요금 절감이 예상됩니다.</div><div class="muted">계약종별: ${tariff.label}<br>산정기준: ${rateText}</div></div>`;
+    const html = `<h3>전력절감 검토 보고서</h3>${summary}${v67TariffRateTable(tariff)}${v6InstallTable(V6_ITEMS)}${v6ConditionTable(V6_ITEMS,basis)}${v6SavingTable(calc)}${v6Formula(calc)}${v63ExportActions()}<button class="copyBtn" data-copy="${escapeHtml('전력절감 검토 결과\n계약종별: '+tariff.label+'\n산정기준: '+rateText+'\n절감전력량: '+num(calc.annualKwh)+'kWh\n절감금액: '+won(calc.annualMoney))}">결과 복사하기</button>`;
+    const out = v6E('energyResult'); out.innerHTML = html; out.classList.remove('hidden'); bindCopyButtons();
+  }catch(e){ showEnergyError(e.message); }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    initMotorSelects();
+    v6BuildEnergyUi();
+    const eye=document.querySelector('.eyebrow'); if(eye) eye.textContent='KEC Edition · Ver 6.8';
+    const foot=document.querySelector('.notice'); if(foot) foot.innerHTML='<strong>주의</strong> 본 프로그램은 KEC 기준과 2026년 6월 1일 시행 한전 요금표 기반의 실무 보조도구입니다. Ver 6.8는 전력절감 검토 보고서의 용어와 절감효과 표기를 정리한 버전입니다. 실제 적용 전 현장 운전조건과 최신 요금 기준을 최종 확인하세요.';
+  }, 0);
+});
