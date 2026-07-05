@@ -34,3 +34,8 @@ textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px
 .equip-card strong{font-size:15px}.equip-card .meta{color:#667085;font-size:13px;margin-top:4px;line-height:1.45}
 .compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 @media(max-width:760px){.compact-grid{grid-template-columns:1fr}.report-table{min-width:560px;font-size:13px}}
+/* Ver 6.4 report export */
+.export-actions{margin-top:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.export-actions .exportBtn{width:100%}
+@media(max-width:720px){.export-actions{grid-template-columns:1fr}}
+@media print{.tabs,.actions,button,.copyBtn,.export-actions,.notice{display:none!important}.panel{display:block!important}.card,.result{box-shadow:none;border:0}.app{max-width:none}.hero{box-shadow:none}}
