@@ -20,3 +20,17 @@ textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px
 .report-box ol{margin:0;padding-left:20px}
 .report-box li{margin-bottom:10px}
 .report-box .calc{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;font-size:13px;color:var(--muted)}
+
+/* Ver 6.0 report tables */
+.report-table-wrap{overflow-x:auto;margin:12px 0;border:1px solid #e5e7eb;border-radius:12px;background:#fff}
+.report-table{width:100%;border-collapse:collapse;font-size:14px;min-width:680px}
+.report-table th,.report-table td{border-bottom:1px solid #e5e7eb;padding:10px 12px;text-align:left;vertical-align:top}
+.report-table th{background:#f8fafc;color:#374151;font-weight:800}
+.report-table td.num,.report-table th.num{text-align:right;white-space:nowrap}
+.report-table tr.total-row td{background:#f9fafb;font-weight:800}
+.report-summary{border:1px solid #dbeafe;background:#eff6ff;border-radius:14px;padding:14px;margin:12px 0;line-height:1.6}
+.report-sentence{font-size:15px;font-weight:700;color:#172554}
+.equip-card{border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin-top:10px;background:#fff}
+.equip-card strong{font-size:15px}.equip-card .meta{color:#667085;font-size:13px;margin-top:4px;line-height:1.45}
+.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media(max-width:760px){.compact-grid{grid-template-columns:1fr}.report-table{min-width:560px;font-size:13px}}
