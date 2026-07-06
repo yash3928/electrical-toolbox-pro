@@ -351,13 +351,34 @@ function conditionTable(results){
     if(nonWinterDays>0) groups.push({label:'봄·가을철·여름철 기준(3월~10월)', season:'springAutumn', group:'nonWinter', days:nonWinterDays});
     if((dayMap.winter||0)>0) groups.push({label:'겨울철 기준(11월~2월)', season:'winter', group:'winter', days:dayMap.winter});
     groups.forEach((g,idx)=>{
-      const oldPower = conditionText(it.oldKw,it.oldCount);
-      const newPower = powerChanged(it) ? conditionText(it.newKw,it.newCount) : '변경 없음';
-      const oldOp = operationText(it,g.group,false,g.season);
-      const newOp = hoursChanged(it) ? operationText(it,g.group,true,g.season) : '변경 없음';
+const oldPower = `① 부하 : ${conditionText(it.oldKw,it.oldCount)}`;
+const oldOp = `② 가동시간 : ${operationText(it,g.group,false,g.season)}`;
+
+const powerSame = !powerChanged(it);
+const hourSame = !hoursChanged(it);
+
+let newCondition = '';
+
+if(powerSame && hourSame){
+  newCondition = '변경 없음';
+}else{
+  const list = [];
+
+  list.push(powerSame
+    ? '① 부하 : 부하 동일'
+    : `① 부하 : ${conditionText(it.newKw,it.newCount)}`
+  );
+
+  list.push(hourSame
+    ? '② 가동시간 : 가동 시간 동일'
+    : `② 가동시간 : ${operationText(it,g.group,true,g.season)}`
+  );
+
+  newCondition = list.join('<br>');
+}
       const dec = actualRunHours(it,g.group,false)-actualRunHours(it,g.group,true);
       const saveKwh = groupSaveKwh(it,g.season,g.group,g.days);
-      rows.push(`<tr>${idx===0?`<td rowspan="${groups.length}">${i+1}</td><td rowspan="${groups.length}">${esc(it.name)}</td><td rowspan="${groups.length}">${periodLabel(it)}</td>`:''}<td>${g.label}</td><td>${oldPower}<br>${oldOp}</td><td>${newPower}<br>${newOp}</td><td>${num(dec,2)}h/일</td><td>${num(saveKwh,0)}kWh</td>${idx===0?`<td rowspan="${groups.length}">${it.note?esc(it.note):'-'}</td>`:''}</tr>`);
+      rows.push(`<tr>${idx===0?`<td rowspan="${groups.length}">${i+1}</td><td rowspan="${groups.length}">${esc(it.name)}</td><td rowspan="${groups.length}">${periodLabel(it)}</td>`:''}<td>${g.label}</td><td>${oldPower}<br>${oldOp}</td><td>${newCondition}</td><td>${num(dec,2)}h/일</td><td>${num(saveKwh,0)}kWh</td>${idx===0?`<td rowspan="${groups.length}">${it.note?esc(it.note):'-'}</td>`:''}</tr>`);
     });
   });
   return `<h4>1. 절감 조건</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>No</th><th>설비명</th><th>산정기간</th><th>기간/기준</th><th>기존 조건</th><th>변경 조건</th><th>가동시간 감소</th><th>절감전력량(kWh)</th><th>비고</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
