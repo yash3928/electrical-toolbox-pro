@@ -112,6 +112,30 @@ function updateMatMode(){ const motor=$('matInputMode').value==='motor'; $('matD
 function pickBreaker(a){return BREAKER_RATINGS.find(x=>x>=a) || BREAKER_RATINGS[BREAKER_RATINGS.length-1];}
 function pickFrame(at){return (BREAKER_FRAMES.find(f=>at<=f.max)||BREAKER_FRAMES[BREAKER_FRAMES.length-1]).frame;}
 function pickCable(inA){return CABLES.find(c=>c.iz>=inA) || CABLES[CABLES.length-1];}
+
+function terminalBodyBySq(sq){
+  const v=Number(sq);
+  if(v<=1.5) return 'R1.25';
+  if(v<=2.5) return 'R2';
+  if(v<=4) return 'R5.5';
+  if(v<=6) return 'R8';
+  if(v<=10) return 'R14';
+  if(v<=16) return 'R22';
+  if(v<=35) return 'R38';
+  if(v<=50) return 'R60';
+  if(v<=70) return 'R80';
+  if(v<=95) return 'R100';
+  return '기기 단자규격 확인';
+}
+function terminalRecommendation(sq){
+  const body=terminalBodyBySq(sq);
+  return body.includes('확인') ? body : `${body}-(볼트규격 확인)`;
+}
+function isSqInTerminalBlockRange(block,sq){
+  const v=Number(sq);
+  return !!block && v>=Number(block.minSq) && v<=Number(block.maxSq);
+}
+
 function recommendMaterial(){
   try{
     const phase=$('matPhase').value, motor=$('matInputMode').value==='motor';
@@ -124,7 +148,7 @@ function recommendMaterial(){
     const at = pickBreaker(demand); const frame=pickFrame(at); const cable=pickCable(at);
     const loc=LOCATION_RULES[$('matLocation').value]; const conduitType=loc.conduitType; const conduitSize=cable.sq<=4?22:cable.sq<=10?28:cable.sq<=25?36:cable.sq<=50?42:54;
     const fit=CONDUIT_ACCESSORIES[conduitType].fittings(conduitSize);
-    $('matResult').innerHTML = `<div class="card"><h3>추천 결과</h3><div class="actions"><button class="secondary" onclick="copyElementText('matResult')">결과 복사</button></div><div class="table-wrap"><table class="report-table"><tbody><tr><th>전원 방식</th><td>${phase==='three'?'삼상 380V':'단상 220V'}</td></tr><tr><th>부하용량</th><td>${num(kw,2)}kW${motor?` (${(MOTOR_SIZES.find(m=>Number(m.kw)===kw)||{}).hp||''}HP)`:''}</td></tr><tr><th>설계전류</th><td>${num(ib,2)}A</td></tr></tbody></table></div><h4>추천 자재</h4><div class="table-wrap"><table class="report-table"><tbody><tr><th>MCCB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>ELB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>케이블</th><td>CV ${phase==='three'?'4C':'2C'} × ${cable.sq}SQ</td></tr><tr><th>터미널</th><td>${cable.terminal}</td></tr><tr><th>단자대</th><td>${at<=30?'30A':at<=60?'60A':at<=100?'100A':at<=200?'200A':'제조사 확인'} ${phase==='three'?'4P':'2P'}</td></tr><tr><th>전선관</th><td>${conduitType}${conduitSize}</td></tr><tr><th>부속</th><td>${fit.connector}, ${fit.insert}, ${fit.saddle}</td></tr><tr><th>홀커터</th><td>${HOLE_CUTTERS[conduitSize]}</td></tr></tbody></table></div><h4>KEC 검토</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>기호</th><th>의미</th><th>값</th></tr></thead><tbody><tr><td>IB</td><td>설계전류</td><td class="right">${num(ib,2)}A</td></tr><tr><td>In</td><td>차단기 정격전류</td><td class="right">${at}A</td></tr><tr><td>Iz</td><td>전선 허용전류</td><td class="right">${cable.iz}A</td></tr></tbody></table></div><div class="basis">KEC 검토: IB ≤ In ≤ Iz 조건 ${ib<=at&&at<=cable.iz?'만족':'확인 필요'}. 실제 현장 적용 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류를 확인하세요.</div></div>`;
+    $('matResult').innerHTML = `<div class="card"><h3>추천 결과</h3><div class="actions"><button class="secondary" onclick="copyElementText('matResult')">결과 복사</button></div><div class="table-wrap"><table class="report-table"><tbody><tr><th>전원 방식</th><td>${phase==='three'?'삼상 380V':'단상 220V'}</td></tr><tr><th>부하용량</th><td>${num(kw,2)}kW${motor?` (${(MOTOR_SIZES.find(m=>Number(m.kw)===kw)||{}).hp||''}HP)`:''}</td></tr><tr><th>설계전류</th><td>${num(ib,2)}A</td></tr></tbody></table></div><h4>추천 자재</h4><div class="table-wrap"><table class="report-table"><tbody><tr><th>MCCB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>ELB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>케이블</th><td>CV ${phase==='three'?'4C':'3C'} × ${cable.sq}SQ</td></tr><tr><th>도체 구성</th><td>${phase==='three'?'R / S / T / PE':'L / N / PE'}</td></tr><tr><th>압착단자</th><td>${terminalRecommendation(cable.sq)}</td></tr><tr><th>단자대</th><td>${at<=30?'30A':at<=60?'60A':at<=100?'100A':at<=200?'200A':'제조사 확인'} ${phase==='three'?'4P':'2P'}</td></tr><tr><th>전선관</th><td>${conduitType}${conduitSize}</td></tr><tr><th>부속</th><td>${fit.connector}, ${fit.insert}, ${fit.saddle}</td></tr><tr><th>홀커터</th><td>${HOLE_CUTTERS[conduitSize]}</td></tr></tbody></table></div><h4>KEC 검토</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>기호</th><th>의미</th><th>값</th></tr></thead><tbody><tr><td>IB</td><td>설계전류</td><td class="right">${num(ib,2)}A</td></tr><tr><td>In</td><td>차단기 정격전류</td><td class="right">${at}A</td></tr><tr><td>Iz</td><td>전선 허용전류</td><td class="right">${cable.iz}A</td></tr></tbody></table></div><div class="basis">KEC 검토: IB ≤ In ≤ Iz 조건 ${ib<=at&&at<=cable.iz?'만족':'확인 필요'}. 실제 현장 적용 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류를 확인하세요.</div></div>`;
     $('matResult').classList.remove('hidden');
   }catch(e){alert(e.message)}
 }
@@ -134,9 +158,10 @@ function initConduit(){ $('conduitType').addEventListener('change', renderCondui
 function renderConduitSizes(){const t=$('conduitType').value; $('conduitSize').innerHTML=CONDUIT_ACCESSORIES[t].sizes.map(s=>`<option value="${s}">${t}${s}</option>`).join('');}
 function recommendConduit(){const t=$('conduitType').value, s=$('conduitSize').value, f=CONDUIT_ACCESSORIES[t].fittings(s); $('conduitResult').innerHTML=`<div class="card"><h3>${t}${s} 부속</h3><div class="actions"><button class="secondary" onclick="copyElementText('conduitResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>커넥터</th><td>${f.connector}</td></tr><tr><th>인서트/부싱</th><td>${f.insert}</td></tr><tr><th>새들</th><td>${f.saddle}</td></tr><tr><th>홀커터</th><td>${HOLE_CUTTERS[s]}</td></tr></tbody></table></div>`; $('conduitResult').classList.remove('hidden');}
 function initCable(){ $('cableSq').innerHTML=CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join(''); $('cableBtn').addEventListener('click', recommendCable); }
-function recommendCable(){const sq=Number($('cableSq').value), d=CABLE_ACCESSORY_DB.find(c=>c.sq===sq), info=CABLE_TYPE_INFO[$('cableType').value]; $('cableResult').innerHTML=`<div class="card"><h3>케이블 자재 추천</h3><div class="actions"><button class="secondary" onclick="copyElementText('cableResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>케이블</th><td>${info.label} × ${sq}SQ</td></tr><tr><th>추천 터미널</th><td>${d.terminal}</td></tr><tr><th>비고</th><td>${info.note}</td></tr></tbody></table></div>`; $('cableResult').classList.remove('hidden');}
-function initTerminalBlock(){ $('tbAmp').innerHTML=TERMINAL_BLOCK_DB.map(t=>`<option value="${t.amp}">${t.amp}A 단자대</option>`).join(''); $('tbSq').innerHTML=CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join(''); $('tbAmp').addEventListener('change',()=>{const b=TERMINAL_BLOCK_DB.find(x=>x.amp===Number($('tbAmp').value)); if(b) $('tbSq').value=b.defaultSq;}); $('tbBtn').addEventListener('click', recommendTerminalBlock); $('tbAmp').dispatchEvent(new Event('change'));}
-function recommendTerminalBlock(){const amp=Number($('tbAmp').value), sq=Number($('tbSq').value), b=TERMINAL_BLOCK_DB.find(x=>x.amp===amp), c=CABLE_ACCESSORY_DB.find(x=>x.sq===sq); $('tbResult').innerHTML=`<div class="card"><h3>단자대·터미널 선정</h3><div class="actions"><button class="secondary" onclick="copyElementText('tbResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>단자대</th><td>${amp}A ${$('tbPole').value}</td></tr><tr><th>케이블 범위</th><td>${b.cableRange}</td></tr><tr><th>선택 케이블</th><td>${sq}SQ</td></tr><tr><th>추천 터미널</th><td>${c?c.terminal:'제조사 확인'}</td></tr></tbody></table></div>`; $('tbResult').classList.remove('hidden');}
+function recommendCable(){const sq=Number($('cableSq').value), d=CABLE_ACCESSORY_DB.find(c=>c.sq===sq), info=CABLE_TYPE_INFO[$('cableType').value]; $('cableResult').innerHTML=`<div class="card"><h3>케이블 자재 추천</h3><div class="actions"><button class="secondary" onclick="copyElementText('cableResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>케이블</th><td>${info.label} × ${sq}SQ</td></tr><tr><th>압착단자</th><td>${terminalRecommendation(sq)}</td></tr><tr><th>비고</th><td>${info.note}</td></tr></tbody></table></div>`; $('cableResult').classList.remove('hidden');}
+function initTerminalBlock(){ $('tbAmp').innerHTML=TERMINAL_BLOCK_DB.map(t=>`<option value="${t.amp}">${t.amp}A 단자대</option>`).join(''); $('tbSq').innerHTML=CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join(''); $('tbAmp').addEventListener('change', updateTerminalBlockRange); $('tbPole').addEventListener('change', updateTerminalBlockRange); $('tbSq').addEventListener('change', updateTerminalBlockRange); $('tbBtn').addEventListener('click', recommendTerminalBlock); updateTerminalBlockRange();}
+function updateTerminalBlockRange(){const b=TERMINAL_BLOCK_DB.find(x=>x.amp===Number($('tbAmp').value)); const hint=$('tbRangeHint'); if(hint&&b) hint.textContent=`선택 단자대 케이블 범위: ${b.cableRange}`;}
+function recommendTerminalBlock(){const amp=Number($('tbAmp').value), sq=Number($('tbSq').value), b=TERMINAL_BLOCK_DB.find(x=>x.amp===amp), ok=isSqInTerminalBlockRange(b,sq); const review=ok?'범위 내':'범위를 확인해주세요'; $('tbResult').innerHTML=`<div class="card"><h3>단자대·터미널 선정</h3><div class="actions"><button class="secondary" onclick="copyElementText('tbResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>단자대</th><td>${amp}A ${$('tbPole').value}</td></tr><tr><th>케이블 범위</th><td>${b.cableRange}</td></tr><tr><th>선택 케이블</th><td>${sq}SQ</td></tr><tr><th>검토</th><td>${review}</td></tr></tbody></table><div class="basis">단자대는 정격전류와 제조사별 접속 가능 전선 범위를 확인 후 적용하세요.</div></div>`; $('tbResult').classList.remove('hidden');}
 
 // ===== Saving =====
 function initSaving(){
