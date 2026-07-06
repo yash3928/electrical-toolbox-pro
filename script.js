@@ -363,9 +363,30 @@ function buildTariffUpdateDraft(effective,detected,text,fileName){
     textPreview:text.slice(0,12000)
   };
 }
+let tariffUpdateDraftText = '';
+let tariffPdfRawText = '';
 function downloadTextFile(filename, text){
-  const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href);
+  try{
+    const blob=new Blob([text||''],{type:'text/plain;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+  }catch(e){
+    alert('다운로드 실패: '+e.message);
+  }
+}
+function downloadTariffDraft(){
+  if(!tariffUpdateDraftText) return alert('먼저 PDF를 분석해 주세요.');
+  downloadTextFile('tariff-update-draft.json', tariffUpdateDraftText);
+}
+function downloadTariffRawText(){
+  if(!tariffPdfRawText) return alert('먼저 PDF를 분석해 주세요.');
+  downloadTextFile('tariff-pdf-text.txt', tariffPdfRawText);
 }
 async function analyzeTariffPdf(){
   const file=$('tariffPdfFile')?.files?.[0];
@@ -382,6 +403,8 @@ async function analyzeTariffPdf(){
     const draft=buildTariffUpdateDraft(effective,detected,text,file.name);
     const detectedRows=detected.map(d=>`<tr><td>${esc(d.id)}</td><td>${esc(d.label)}</td><td>${d.type==='tou'?'시간대별':'단일'}</td><td>${d.labelHit?'감지':'보조감지'}</td><td>${d.matchedNums}/${d.totalNums}</td></tr>`).join('') || '<tr><td colspan="5">감지된 계약종별이 없습니다. PDF 원문 텍스트를 다운로드해 확인하세요.</td></tr>';
     const json=JSON.stringify(draft,null,2);
+    tariffUpdateDraftText=json;
+    tariffPdfRawText=text;
     box.innerHTML=`<h4>PDF 분석 결과</h4><div class="table-wrap"><table class="report-table"><tbody>
       <tr><th>파일명</th><td>${esc(file.name)}</td></tr>
       <tr><th>현재 요금표</th><td>${tariffVersionText()} 시행</td></tr>
@@ -391,8 +414,8 @@ async function analyzeTariffPdf(){
     <div class="basis">PDF 표 추출은 갱신 보조 기능입니다. <b>적용 전 한전 원문 단가와 미리보기 값을 반드시 대조</b>하세요. 현재 단계에서는 GitHub Pages 보안상 database.js를 직접 덮어쓰지 않고 갱신 보조 파일을 생성합니다.</div>
     <details open><summary>감지된 계약종별 보기</summary><div class="table-wrap"><table class="report-table"><thead><tr><th>ID</th><th>계약종별</th><th>구분</th><th>감지방식</th><th>현재 DB 단가 대조</th></tr></thead><tbody>${detectedRows}</tbody></table></div></details>
     <div class="actions">
-      <button class="secondary" type="button" onclick='downloadTextFile("tariff-update-draft.json", ${JSON.stringify(json)})'>갱신 보조 JSON 다운로드</button>
-      <button class="secondary" type="button" onclick='downloadTextFile("tariff-pdf-text.txt", ${JSON.stringify(text)})'>PDF 원문 텍스트 다운로드</button>
+      <button class="secondary" type="button" onclick="downloadTariffDraft()">갱신 보조 JSON 다운로드</button>
+      <button class="secondary" type="button" onclick="downloadTariffRawText()">PDF 원문 텍스트 다운로드</button>
     </div>`;
   }catch(e){
     box.innerHTML=`<div class="basis">PDF 분석 실패: ${esc(e.message)}</div>`;
