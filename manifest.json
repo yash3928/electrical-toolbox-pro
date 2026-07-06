@@ -2,7 +2,7 @@
   "name": "전기 실무 Toolbox",
   "short_name": "전기 실무",
   "description": "KEC 기반 전기 실무 계산 및 전력절감 검토 도구",
-  "start_url": "./index.html?v=10.4.0",
+  "start_url": "./index.html?v=10.5.0",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",

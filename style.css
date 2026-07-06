@@ -130,3 +130,21 @@ h4{margin:8px 0 6px;font-size:14px}
   h2 { font-size: 22px; }
   .report-table { font-size: 13px; }
 }
+
+
+/* Ver 10.5 LTS Mobile Final: compact mobile header/tabs, PC unchanged */
+@media (max-width: 760px) {
+  .hero { padding: 13px 16px; }
+  .eyebrow { font-size: 12px; margin-bottom: 3px; }
+  .hero h1 { font-size: 25px; margin-bottom: 4px; }
+  .sub { font-size: 15px; max-width: 100%; }
+  .tabs { gap: 7px; }
+  .tab { font-size: 15px; padding: 11px 14px; }
+  .tab[data-tab="saving"] { min-width: 84px; }
+  .tab[data-tab="tariffAdmin"] { min-width: 84px; }
+}
+@media (max-width: 390px) {
+  .hero h1 { font-size: 22px; }
+  .sub { font-size: 13.5px; }
+  .tab { font-size: 13.5px; padding: 10px 11px; }
+}
