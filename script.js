@@ -343,24 +343,77 @@ function groupSaveKwh(item,season,group,days){
 }
 function conditionTable(results){
   const rows=[];
+
   results.forEach((x,i)=>{
     const it=x.item;
     const dayMap=itemSeasonDays(it);
     const groups=[];
     const nonWinterDays=(dayMap.springAutumn||0)+(dayMap.summer||0);
-    if(nonWinterDays>0) groups.push({label:'봄·가을철·여름철 기준(3월~10월)', season:'springAutumn', group:'nonWinter', days:nonWinterDays});
-    if((dayMap.winter||0)>0) groups.push({label:'겨울철 기준(11월~2월)', season:'winter', group:'winter', days:dayMap.winter});
+
+    if(nonWinterDays>0){
+      groups.push({label:'봄·가을철·여름철 기준(3월~10월)', season:'springAutumn', group:'nonWinter', days:nonWinterDays});
+    }
+
+    if((dayMap.winter||0)>0){
+      groups.push({label:'겨울철 기준(11월~2월)', season:'winter', group:'winter', days:dayMap.winter});
+    }
+
     groups.forEach((g,idx)=>{
-const oldPower = conditionText(it.oldKw,it.oldCount);
-const newPower = powerChanged(it) ? conditionText(it.newKw,it.newCount) : '변경 없음';
-const oldOp = operationText(it,g.group,false,g.season);
-const newOp = hoursChanged(it) ? operationText(it,g.group,true,g.season) : '변경 없음';
+      const oldCondition =
+        '① 부하 : ' + conditionText(it.oldKw,it.oldCount) +
+        '<br>② 가동시간 : ' + operationText(it,g.group,false,g.season);
+
+      const powerSame = !powerChanged(it);
+      const hourSame = !hoursChanged(it);
+
+      let newCondition = '';
+
+      if(powerSame && hourSame){
+        newCondition = '변경 없음';
+      }else{
+        const parts=[];
+
+        if(powerSame){
+          parts.push('① 부하 : 부하 동일');
+        }else{
+          parts.push('① 부하 : ' + conditionText(it.newKw,it.newCount));
+        }
+
+        if(hourSame){
+          parts.push('② 가동시간 : 가동시간 동일');
+        }else{
+          parts.push('② 가동시간 : ' + operationText(it,g.group,true,g.season));
+        }
+
+        newCondition = parts.join('<br>');
+      }
+
       const dec = actualRunHours(it,g.group,false)-actualRunHours(it,g.group,true);
       const saveKwh = groupSaveKwh(it,g.season,g.group,g.days);
-      rows.push(`<tr>${idx===0?`<td rowspan="${groups.length}">${i+1}</td><td rowspan="${groups.length}">${esc(it.name)}</td><td rowspan="${groups.length}">${periodLabel(it)}</td>`:''}<td>${g.label}</td><td>${oldPower}<br>${oldOp}</td><td>${newPower}<br>${newOp}</td><td>${num(dec,2)}h/일</td><td>${num(saveKwh,0)}kWh</td>${idx===0?`<td rowspan="${groups.length}">${it.note?esc(it.note):'-'}</td>`:''}</tr>`);
+
+      rows.push('<tr>' +
+        (idx===0 ? '<td rowspan="' + groups.length + '">' + (i+1) + '</td>' +
+        '<td rowspan="' + groups.length + '">' + esc(it.name) + '</td>' +
+        '<td rowspan="' + groups.length + '">' + periodLabel(it) + '</td>' : '') +
+        '<td>' + g.label + '</td>' +
+        '<td>' + oldCondition + '</td>' +
+        '<td>' + newCondition + '</td>' +
+        '<td>' + num(dec,2) + 'h/일</td>' +
+        '<td>' + num(saveKwh,0) + 'kWh</td>' +
+        (idx===0 ? '<td rowspan="' + groups.length + '">' + (it.note ? esc(it.note) : '-') + '</td>' : '') +
+        '</tr>');
     });
   });
-  return `<h4>1. 절감 조건</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>No</th><th>설비명</th><th>산정기간</th><th>기간/기준</th><th>기존 조건</th><th>변경 조건</th><th>가동시간 감소</th><th>절감전력량(kWh)</th><th>비고</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
+
+  return '<h4>1. 절감 조건</h4>' +
+    '<div class="table-wrap"><table class="report-table">' +
+    '<thead><tr>' +
+    '<th>No</th><th>설비명</th><th>산정기간</th><th>기간/기준</th>' +
+    '<th>기존 조건</th><th>변경 조건</th><th>가동시간 감소</th>' +
+    '<th>절감전력량(kWh)</th><th>비고</th>' +
+    '</tr></thead><tbody>' +
+    rows.join('') +
+    '</tbody></table></div>';
 }
 function effectTable(results,total){return `<h4>2. 절감효과</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>설비명</th><th>기존 사용전력</th><th>변경 사용전력</th><th>연 절감전력</th><th>절감률</th><th>연 절감금액</th></tr></thead><tbody>${results.map(x=>`<tr><td>${esc(x.item.name)}</td><td>${num(x.calc.oldKwh,0)}kWh</td><td>${num(x.calc.newKwh,0)}kWh</td><td class="bold">${num(x.calc.saveKwh,0)}kWh</td><td>${num(x.calc.saveRate,1)}%</td><td class="bold">${won(x.calc.saveMoney)}</td></tr>`).join('')}<tr><th>합계</th><th>${num(total.oldKwh,0)}kWh</th><th>${num(total.newKwh,0)}kWh</th><th>${num(total.saveKwh,0)}kWh</th><th>${num(total.saveRate,1)}%</th><th>${won(total.saveMoney)}</th></tr></tbody></table></div>`}
 function seasonPeriod(s){return s==='summer'?'6월~8월':s==='springAutumn'?'3월~5월, 9월~10월':s==='springSummerAutumn'?'3월~10월':'11월~2월'}
