@@ -113,23 +113,26 @@ function pickBreaker(a){return BREAKER_RATINGS.find(x=>x>=a) || BREAKER_RATINGS[
 function pickFrame(at){return (BREAKER_FRAMES.find(f=>at<=f.max)||BREAKER_FRAMES[BREAKER_FRAMES.length-1]).frame;}
 function pickCable(inA){return CABLES.find(c=>c.iz>=inA) || CABLES[CABLES.length-1];}
 
-function terminalBodyBySq(sq){
+function compressionLugBySq(sq){
   const v=Number(sq);
-  if(v<=1.5) return 'R1.25';
-  if(v<=2.5) return 'R2';
-  if(v<=4) return 'R5.5';
-  if(v<=6) return 'R8';
-  if(v<=10) return 'R14';
-  if(v<=16) return 'R22';
-  if(v<=35) return 'R38';
-  if(v<=50) return 'R60';
-  if(v<=70) return 'R80';
-  if(v<=95) return 'R100';
-  return '기기 단자규격 확인';
+  const rows=[
+    {max:1.5, lug:'R1.5', range:'1.5SQ 이하', bolts:['M3.5','M4']},
+    {max:2.5, lug:'R2.5', range:'2.5SQ', bolts:['M4','M5']},
+    {max:4, lug:'R4', range:'4SQ', bolts:['M4','M5']},
+    {max:6, lug:'R6', range:'6SQ', bolts:['M5','M6']},
+    {max:10, lug:'R10', range:'10SQ', bolts:['M5','M6','M8']},
+    {max:16, lug:'R16', range:'16SQ', bolts:['M6','M8']},
+    {max:25, lug:'R25', range:'25SQ', bolts:['M6','M8','M10']},
+    {max:35, lug:'R35', range:'35SQ', bolts:['M8','M10']},
+    {max:50, lug:'R50', range:'50SQ', bolts:['M8','M10','M12']},
+    {max:70, lug:'R70', range:'70SQ', bolts:['M10','M12']},
+    {max:95, lug:'R95', range:'95SQ', bolts:['M10','M12','M14']}
+  ];
+  return rows.find(r=>v<=r.max) || {lug:'기기 단자규격 확인', range:'제조사 확인', bolts:['제조사 확인']};
 }
 function terminalRecommendation(sq){
-  const body=terminalBodyBySq(sq);
-  return body.includes('확인') ? body : `${body}-(볼트규격 확인)`;
+  const r=compressionLugBySq(sq);
+  return r.lug.includes('확인') ? r.lug : `${r.lug} (볼트 ${r.bolts.join(' / ')} 확인)`;
 }
 function isSqInTerminalBlockRange(block,sq){
   const v=Number(sq);
@@ -159,9 +162,29 @@ function renderConduitSizes(){const t=$('conduitType').value; $('conduitSize').i
 function recommendConduit(){const t=$('conduitType').value, s=$('conduitSize').value, f=CONDUIT_ACCESSORIES[t].fittings(s); $('conduitResult').innerHTML=`<div class="card"><h3>${t}${s} 부속</h3><div class="actions"><button class="secondary" onclick="copyElementText('conduitResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>커넥터</th><td>${f.connector}</td></tr><tr><th>인서트/부싱</th><td>${f.insert}</td></tr><tr><th>새들</th><td>${f.saddle}</td></tr><tr><th>홀커터</th><td>${HOLE_CUTTERS[s]}</td></tr></tbody></table></div>`; $('conduitResult').classList.remove('hidden');}
 function initCable(){ $('cableSq').innerHTML=CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join(''); $('cableBtn').addEventListener('click', recommendCable); }
 function recommendCable(){const sq=Number($('cableSq').value), d=CABLE_ACCESSORY_DB.find(c=>c.sq===sq), info=CABLE_TYPE_INFO[$('cableType').value]; $('cableResult').innerHTML=`<div class="card"><h3>케이블 자재 추천</h3><div class="actions"><button class="secondary" onclick="copyElementText('cableResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>케이블</th><td>${info.label} × ${sq}SQ</td></tr><tr><th>압착단자</th><td>${terminalRecommendation(sq)}</td></tr><tr><th>비고</th><td>${info.note}</td></tr></tbody></table></div>`; $('cableResult').classList.remove('hidden');}
-function initTerminalBlock(){ $('tbAmp').innerHTML=TERMINAL_BLOCK_DB.map(t=>`<option value="${t.amp}">${t.amp}A 단자대</option>`).join(''); $('tbSq').innerHTML=CABLE_ACCESSORY_DB.map(c=>`<option value="${c.sq}">${c.sq}SQ</option>`).join(''); $('tbAmp').addEventListener('change', updateTerminalBlockRange); $('tbPole').addEventListener('change', updateTerminalBlockRange); $('tbSq').addEventListener('change', updateTerminalBlockRange); $('tbBtn').addEventListener('click', recommendTerminalBlock); updateTerminalBlockRange();}
-function updateTerminalBlockRange(){const b=TERMINAL_BLOCK_DB.find(x=>x.amp===Number($('tbAmp').value)); const hint=$('tbRangeHint'); if(hint&&b) hint.textContent=`선택 단자대 케이블 범위: ${b.cableRange}`;}
-function recommendTerminalBlock(){const amp=Number($('tbAmp').value), sq=Number($('tbSq').value), b=TERMINAL_BLOCK_DB.find(x=>x.amp===amp), ok=isSqInTerminalBlockRange(b,sq); const review=ok?'범위 내':'범위를 확인해주세요'; $('tbResult').innerHTML=`<div class="card"><h3>단자대·터미널 선정</h3><div class="actions"><button class="secondary" onclick="copyElementText('tbResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>단자대</th><td>${amp}A ${$('tbPole').value}</td></tr><tr><th>케이블 범위</th><td>${b.cableRange}</td></tr><tr><th>선택 케이블</th><td>${sq}SQ</td></tr><tr><th>검토</th><td>${review}</td></tr></tbody></table><div class="basis">단자대는 정격전류와 제조사별 접속 가능 전선 범위를 확인 후 적용하세요.</div></div>`; $('tbResult').classList.remove('hidden');}
+function initTerminalBlock(){
+  $('tbAmp').innerHTML=TERMINAL_BLOCK_DB.map(t=>`<option value="${t.amp}">${t.amp}A 단자대</option>`).join('');
+  $('tbAmp').addEventListener('change', renderTerminalBlockInfo);
+  $('tbPole').addEventListener('change', renderTerminalBlockInfo);
+  renderTerminalBlockInfo();
+}
+function terminalBlockCableOptions(block){
+  if(!block) return [];
+  return CABLE_ACCESSORY_DB.map(c=>Number(c.sq)).filter(sq=>sq>=Number(block.minSq)&&sq<=Number(block.maxSq));
+}
+function renderTerminalBlockInfo(){
+  const amp=Number($('tbAmp').value), pole=$('tbPole').value, b=TERMINAL_BLOCK_DB.find(x=>x.amp===amp);
+  if(!b) return;
+  const cables=terminalBlockCableOptions(b);
+  const hint=$('tbRangeHint');
+  if(hint) hint.textContent=`${amp}A ${pole} 적용 가능 케이블: ${cables.map(sq=>sq+'SQ').join(' / ')}`;
+  const rows=cables.map(sq=>{
+    const lug=compressionLugBySq(sq);
+    return `<tr><td>${sq}SQ</td><td>${lug.lug}</td><td>${lug.bolts.join(' / ')}</td></tr>`;
+  }).join('');
+  $('tbResult').innerHTML=`<div class="card"><h3>단자대·압착단자 선정</h3><div class="actions"><button class="secondary" onclick="copyElementText('tbResult')">결과 복사</button></div><table class="report-table"><tbody><tr><th>단자대</th><td>${amp}A ${pole}</td></tr><tr><th>적용 가능 케이블</th><td>${cables.map(sq=>sq+'SQ').join(' / ')}</td></tr></tbody></table><h4>적용 가능 케이블별 압착단자 참고</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>케이블 굵기</th><th>압착단자</th><th>볼트 규격</th></tr></thead><tbody>${rows}</tbody></table></div><div class="basis">압착단자는 국내 현장 표기 기준으로 표시했습니다. 최종 볼트 규격은 기기 제조사 단자 치수를 확인 후 적용하세요.</div></div>`;
+  $('tbResult').classList.remove('hidden');
+}
 
 // ===== Saving =====
 function initSaving(){
