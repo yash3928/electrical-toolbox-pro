@@ -7,7 +7,7 @@ let equipmentItems = [];
 const timeRanges = {};
 let appTariffVersion = (typeof TARIFF_VERSION !== 'undefined') ? TARIFF_VERSION : '요금표 기준 미지정';
 let appTariffs = (typeof TARIFFS !== 'undefined') ? TARIFFS : [];
-let tariffJsonStatus = 'database.js 내장 요금표 사용';
+let tariffJsonStatus = '내장 요금표 사용';
 
 function getTariffs(){ return appTariffs && appTariffs.length ? appTariffs : ((typeof TARIFFS !== 'undefined') ? TARIFFS : []); }
 
@@ -20,7 +20,7 @@ async function loadTariffJson(){
     if(!contracts.length) throw new Error('계약종별 데이터 없음');
     appTariffs = contracts;
     appTariffVersion = data.effectiveDate || data.version || appTariffVersion;
-    tariffJsonStatus = `tariff.json 적용 (${appTariffVersion} 시행, ${contracts.length}개 계약종별)`;
+    tariffJsonStatus = `외부 요금표 적용 (${appTariffVersion} 시행, ${contracts.length}개 계약종별)`;
   }catch(e){
     tariffJsonStatus = `내장 요금표 사용 (${appTariffVersion} 시행)`;
   }
@@ -276,7 +276,7 @@ function initTariffAdmin(){
     <tr><th>현재 요금표 기준</th><td>${tariffVersionText()} 시행</td></tr>
     <tr><th>탑재 계약종별</th><td>${getTariffs().length}개 (시간대별 ${touCount}개, 단일요금 ${flatCount}개)</td></tr>
     <tr><th>계절 기준</th><td>${tariffSeasonBasisText()}</td></tr>
-    <tr><th>요금 데이터</th><td>${esc(tariffJsonStatus)}</td></tr><tr><th>관리 방식</th><td>PDF 분석 → tariff.json 생성 → GitHub에 tariff.json 교체</td></tr>
+    <tr><th>관리 방식</th><td>PDF 분석 → tariff.json 생성 → GitHub에 tariff.json 교체</td></tr>
   </tbody></table></div>${kepcoTimeGuideHtml()}`;
   $('tariffPdfAnalyze')?.addEventListener('click', analyzeTariffPdf);
   $('tariffPdfClear')?.addEventListener('click', clearTariffPdfResult);
