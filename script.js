@@ -5,11 +5,31 @@ const seasonsShortKo = {summer:'여름철', springAutumn:'봄·가을철', sprin
 const loadKo = {light:'경부하', mid:'중간부하', peak:'최대부하'};
 let equipmentItems = [];
 const timeRanges = {};
+let appTariffVersion = (typeof TARIFF_VERSION !== 'undefined') ? TARIFF_VERSION : '요금표 기준 미지정';
+let appTariffs = (typeof TARIFFS !== 'undefined') ? TARIFFS : [];
+let tariffJsonStatus = 'database.js 내장 요금표 사용';
+
+function getTariffs(){ return appTariffs && appTariffs.length ? appTariffs : ((typeof TARIFFS !== 'undefined') ? TARIFFS : []); }
+
+async function loadTariffJson(){
+  try{
+    const res = await fetch('tariff.json', {cache:'no-store'});
+    if(!res.ok) throw new Error('tariff.json 없음');
+    const data = await res.json();
+    const contracts = Array.isArray(data.contracts) ? data.contracts : [];
+    if(!contracts.length) throw new Error('계약종별 데이터 없음');
+    appTariffs = contracts;
+    appTariffVersion = data.effectiveDate || data.version || appTariffVersion;
+    tariffJsonStatus = `tariff.json 적용 (${appTariffVersion} 시행, ${contracts.length}개 계약종별)`;
+  }catch(e){
+    tariffJsonStatus = `내장 요금표 사용 (${appTariffVersion} 시행)`;
+  }
+}
 
 function init(){
   initTabs(); initMaterial(); initConduit(); initCable(); initTerminalBlock(); initSaving(); initTariffAdmin();
 }
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', async()=>{ await loadTariffJson(); init(); });
 
 function initTabs(){ qsa('.tab').forEach(btn=>btn.addEventListener('click',()=>{qsa('.tab').forEach(b=>b.classList.remove('active')); qsa('.panel').forEach(p=>p.classList.remove('active')); btn.classList.add('active'); $(btn.dataset.tab).classList.add('active');})); }
 function won(n){return Math.round(Number(n)||0).toLocaleString('ko-KR')+'원'}
@@ -57,7 +77,7 @@ function recommendTerminalBlock(){const amp=Number($('tbAmp').value), sq=Number(
 
 // ===== Saving =====
 function initSaving(){
-  $('saveTariff').innerHTML=TARIFFS.map(t=>`<option value="${t.id}">${t.label}</option>`).join(''); $('saveTariff').value='industrial_b_highA_1';
+  $('saveTariff').innerHTML=getTariffs().map(t=>`<option value="${t.id}">${t.label}</option>`).join(''); $('saveTariff').value='industrial_b_highA_1';
   renderTimeSelectors();
   $('sameKw').addEventListener('change', syncSameInputs); $('sameCount').addEventListener('change', syncSameInputs); $('sameRunMin').addEventListener('change', syncSameInputs); $('eqAllYear').addEventListener('change', syncPeriodMode);
   ['oldKw','oldCount','oldRunMin'].forEach(id=>$(id).addEventListener('input', syncSameInputs));
@@ -159,8 +179,8 @@ function itemSeasonDays(item){
 }
 function periodLabel(item){if(item.allYear) return '연중운전 365일'; const days=getItemDays(item); if(days>=245) return `연간운전 기준 (${days}일)`; return `${seasonsShortKo[item.season]} ${days}일`}
 function touKind(season,h){ if(h>=22||h<8) return 'light'; if(season==='winter'){ if((h>=9&&h<12)||(h>=16&&h<19)) return 'peak'; return 'mid'; } if(h>=15&&h<21) return 'peak'; return 'mid'; }
-function tariffById(){return TARIFFS.find(t=>t.id===$('saveTariff').value)||TARIFFS[0]}
-function tariffVersionText(){return typeof TARIFF_VERSION!=='undefined' ? TARIFF_VERSION : '요금표 기준 미지정'}
+function tariffById(){return getTariffs().find(t=>t.id===$('saveTariff').value)||getTariffs()[0]}
+function tariffVersionText(){return appTariffVersion || '요금표 기준 미지정'}
 function tariffSeasonBasisText(){return '일반·산업용 기준: 여름철 6~8월, 봄·가을철 3~5월·9~10월, 겨울철 11~2월'}
 function rateFor(tariff,season,kind){ if(tariff.type==='tou') return tariff.energy[season][kind]; return tariff.energy[season]; }
 function itemHours(item,changed,opGroup){const raw=changed?(opGroup==='winter'?item.newWinter:item.newNonWinter):(opGroup==='winter'?item.oldWinter:item.oldNonWinter); return raw && raw.length ? raw : Array.from({length:24},(_,i)=>i)}
@@ -249,14 +269,14 @@ function compressHours(hours){ if(!hours.length) return ''; const sorted=[...hou
 
 function initTariffAdmin(){
   const box=$('tariffInfo');
-  if(!box || typeof TARIFFS==='undefined') return;
-  const touCount=TARIFFS.filter(t=>t.type==='tou').length;
-  const flatCount=TARIFFS.filter(t=>t.type==='flat').length;
+  if(!box || !getTariffs().length) return;
+  const touCount=getTariffs().filter(t=>t.type==='tou').length;
+  const flatCount=getTariffs().filter(t=>t.type==='flat').length;
   box.innerHTML=`<div class="table-wrap"><table class="report-table"><tbody>
     <tr><th>현재 요금표 기준</th><td>${tariffVersionText()} 시행</td></tr>
-    <tr><th>탑재 계약종별</th><td>${TARIFFS.length}개 (시간대별 ${touCount}개, 단일요금 ${flatCount}개)</td></tr>
+    <tr><th>탑재 계약종별</th><td>${getTariffs().length}개 (시간대별 ${touCount}개, 단일요금 ${flatCount}개)</td></tr>
     <tr><th>계절 기준</th><td>${tariffSeasonBasisText()}</td></tr>
-    <tr><th>관리 방식</th><td>PDF 분석 → 미리보기 확인 → 갱신 보조 파일 다운로드 → database.js 반영</td></tr>
+    <tr><th>요금 데이터</th><td>${esc(tariffJsonStatus)}</td></tr><tr><th>관리 방식</th><td>PDF 분석 → tariff.json 생성 → GitHub에 tariff.json 교체</td></tr>
   </tbody></table></div>${kepcoTimeGuideHtml()}`;
   $('tariffPdfAnalyze')?.addEventListener('click', analyzeTariffPdf);
   $('tariffPdfClear')?.addEventListener('click', clearTariffPdfResult);
@@ -340,7 +360,7 @@ function tariffNumbers(t){
 }
 function detectTariffLabels(text){
   const nt=normalizeTariffText(text);
-  return TARIFFS.map(t=>{
+  return getTariffs().map(t=>{
     const labelHit=looseLabelDetected(nt,t.label);
     const nums=tariffNumbers(t);
     const matchedNums=nums.filter(v=>numberPresent(text,v)).length;
@@ -359,7 +379,7 @@ function buildTariffUpdateDraft(effective,detected,text,fileName){
     suggestedTariffVersion:effective && !effective.includes('실패') ? effective : tariffVersionText(),
     detectedTariffCount:detected.length,
     detectedTariffs:detected,
-    instruction:'이 결과는 database.js 자동 교체본이 아니라 갱신 보조 자료입니다. 감지된 계약종별과 원문 단가를 확인한 뒤 TARIFF_VERSION 및 TARIFFS를 갱신하세요.',
+    instruction:'이 결과는 tariff.json 갱신 보조 자료입니다. 감지된 계약종별과 원문 단가를 확인한 뒤 tariff.json을 갱신하세요.',
     textPreview:text.slice(0,12000)
   };
 }
