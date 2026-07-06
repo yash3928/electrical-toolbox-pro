@@ -1,4 +1,4 @@
-const CACHE_NAME = 'electric-toolbox-pwa-v10.0.0';
+const CACHE_NAME = 'electric-toolbox-pwa-v10.2.0';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -7,13 +7,15 @@ const APP_ASSETS = [
   './database.js',
   './tariff.json',
   './manifest.json',
+  './icons/icon.svg',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS))
   );
 });
 
@@ -25,11 +27,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Same-origin files: cache first, then network update.
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
@@ -46,6 +53,5 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // External libraries such as pdf.js: network first, fallback to browser default failure.
   event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });

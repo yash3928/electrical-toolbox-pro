@@ -10,13 +10,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="전기 실무 Toolbox" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=10.0.0" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="style.css?v=10.2.0" />
 </head>
 <body>
   <main class="app">
     <header class="hero">
-      <p class="eyebrow">KEC Edition · Ver 10.0 PWA</p>
+      <p class="eyebrow">KEC Edition · Ver 10.2 PWA</p>
       <h1>⚡ 전기 실무 Toolbox</h1>
       <p class="sub">Electrical Toolbox Pro · KEC 기반 실무 계산 · 전력절감 검토</p>
     </header>
@@ -170,16 +170,54 @@
     <section class="notice"><strong>주의</strong> 본 도구는 KEC, 한전 요금표, 국내 표준 자재 기준을 활용한 실무 보조용입니다. 최종 설계·시공 전 최신 규정, 포설조건, 제조사 치수, 사내 기준을 확인하세요.</section>
   </main>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="database.js?v=10.0.0"></script>
-  <script src="script.js?v=10.0.0"></script>
+  <script src="database.js?v=10.2.0"></script>
+  <script src="script.js?v=10.2.0"></script>
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./service-worker.js').catch(function (err) {
-          console.warn('Service worker registration failed:', err);
+    (function () {
+      function showUpdateNotice(registration) {
+        if (document.getElementById('pwaUpdateNotice')) return;
+        var box = document.createElement('div');
+        box.id = 'pwaUpdateNotice';
+        box.className = 'pwa-update-notice';
+        box.innerHTML = '<span>새 버전이 있습니다.</span><button type="button">업데이트</button>';
+        document.body.appendChild(box);
+        box.querySelector('button').addEventListener('click', function () {
+          if (registration && registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          } else {
+            window.location.reload();
+          }
         });
-      });
-    }
+      }
+
+      if ('serviceWorker' in navigator) {
+        var refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('./service-worker.js').then(function (registration) {
+            if (registration.waiting && navigator.serviceWorker.controller) {
+              showUpdateNotice(registration);
+            }
+            registration.addEventListener('updatefound', function () {
+              var newWorker = registration.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener('statechange', function () {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showUpdateNotice(registration);
+                }
+              });
+            });
+          }).catch(function (err) {
+            console.warn('Service worker registration failed:', err);
+          });
+        });
+      }
+    })();
   </script>
 </body>
 </html>
