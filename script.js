@@ -374,13 +374,13 @@ function conditionTable(results){
         const parts=[];
 
         if(powerSame){
-          parts.push('① 부하 : 부하 동일');
+          parts.push('① 부하 동일');
         }else{
           parts.push('① 부하 : ' + conditionText(it.newKw,it.newCount));
         }
 
         if(hourSame){
-          parts.push('② 가동시간 : 가동시간 동일');
+          parts.push('② 가동시간 동일');
         }else{
           parts.push('② 가동시간 : ' + operationText(it,g.group,true,g.season));
         }
