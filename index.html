@@ -80,7 +80,7 @@
     <section id="saving" class="panel">
       <div class="card">
         <h2>전력절감 검토</h2>
-        <p class="help">기존값과 변경값을 비교합니다. 변경값이 기존과 같으면 <b>기존과 동일</b>을 체크하세요. 프로그램이 전력량 절감, 운전시간 변경, 복합 절감을 자동 판별합니다.</p>
+        <p class="help">기존값과 변경값을 비교합니다. 변경값이 기존과 같으면 <b>변경 없음</b>을 체크하세요. 프로그램이 전력량 절감, 운전시간 변경, 복합 절감을 자동 판별합니다.</p>
         <div class="grid">
           <label class="full">계약종별
             <select id="saveTariff"></select>
@@ -103,11 +103,11 @@
 
           <div class="compare-col">
             <h4>변경 조건</h4>
-            <label class="field-title">변경 부하(kW) <span class="same-inline"><input id="sameKw" type="checkbox" checked /> 기존과 동일</span></label>
+            <label class="field-title">변경 부하(kW) <span class="same-inline"><input id="sameKw" type="checkbox" checked /> 변경 없음</span></label>
             <label id="newKwWrap"><input id="newKw" type="number" min="0" step="0.01" placeholder="예: 5.5" /></label>
-            <label class="field-title">변경 대수 <span class="same-inline"><input id="sameCount" type="checkbox" checked /> 기존과 동일</span></label>
+            <label class="field-title">변경 대수 <span class="same-inline"><input id="sameCount" type="checkbox" checked /> 변경 없음</span></label>
             <label id="newCountWrap"><input id="newCount" type="number" min="0" step="1" value="1" /></label>
-            <label class="field-title">변경 가동시간(분/시간) <span class="same-inline"><input id="sameRunMin" type="checkbox" checked /> 기존과 동일</span></label>
+            <label class="field-title">변경 가동시간(분/시간) <span class="same-inline"><input id="sameRunMin" type="checkbox" checked /> 변경 없음</span></label>
             <label id="newRunMinWrap"><input id="newRunMin" type="number" min="0" max="60" step="1" value="60" /></label>
           </div>
         </div>
