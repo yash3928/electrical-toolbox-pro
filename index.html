@@ -24,8 +24,8 @@
     <nav class="tabs" aria-label="메뉴">
       <button class="tab active" data-tab="material">부하 기준 자재 선정</button>
       <button class="tab" data-tab="conduit">전선관 부속 선정</button>
-      <button class="tab" data-tab="cable">케이블 자재 선정</button>
-      <button class="tab" data-tab="terminalBlock">단자대·압착단자 선정</button>
+      <button class="tab" data-tab="cable">케이블 압착단자 선정</button>
+      <button class="tab" data-tab="terminalBlock">단자대 규격별 자재 선정</button>
       <button class="tab" data-tab="saving">전력절감 검토</button>
       <button class="tab" data-tab="tariffAdmin">한전 요금 관리</button>
     </nav>
@@ -68,12 +68,12 @@
     </section>
 
     <section id="cable" class="panel">
-      <div class="card"><h2>케이블 자재 선정</h2><p class="help">대표 터미널 1개만 표시합니다. 단자 구멍 규격은 현장 기기 치수 확인 후 최종 적용하세요.</p><div class="grid"><label>케이블 종류<select id="cableType"><option value="CV_4C">CV 4C</option><option value="CV_3C">CV 3C</option><option value="CV_2C">CV 2C</option><option value="HIV_SINGLE">HIV/IV 단심</option></select></label><label>케이블 굵기<select id="cableSq"></select></label></div><div class="actions"><button id="cableBtn" class="primary">자재 추천</button></div></div>
+      <div class="card"><h2>케이블 압착단자 선정</h2><p class="help">단자 구멍 규격은 현장 기기 치수 확인 후 최종 적용하세요.</p><div class="grid"><label>케이블 종류<select id="cableType"><option value="CV_4C">CV 4C</option><option value="CV_3C">CV 3C</option><option value="CV_2C">CV 2C</option><option value="HIV_SINGLE">HIV/IV 단심</option></select></label><label>케이블 굵기<select id="cableSq"></select></label></div><div class="actions"><button id="cableBtn" class="primary">자재 추천</button></div></div>
       <div id="cableResult" class="result hidden"></div>
     </section>
 
     <section id="terminalBlock" class="panel">
-      <div class="card"><h2>단자대·압착단자 선정</h2><p class="help">단자대 정격과 극수를 선택하면 해당 단자대 범위에 들어오는 케이블 굵기와 압착단자 참고 규격을 자동 표시합니다.</p><div class="grid"><label>단자대 정격<select id="tbAmp"></select></label><label>극수<select id="tbPole"><option>2P</option><option>3P</option><option selected>4P</option></select></label></div><p id="tbRangeHint" class="basis"></p></div>
+      <div class="card"><h2>단자대 규격별 자재 선정</h2><p class="help">단자대 정격과 극수를 선택하면 해당 단자대 범위에 들어오는 케이블 굵기와 압착단자 참고 규격을 자동 표시합니다.</p><div class="grid"><label>단자대 정격<select id="tbAmp"></select></label><label>극수<select id="tbPole"><option>2P</option><option>3P</option><option selected>4P</option></select></label></div><p id="tbRangeHint" class="basis"></p></div>
       <div id="tbResult" class="result hidden"></div>
     </section>
 
