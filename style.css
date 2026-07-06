@@ -18,3 +18,8 @@ h4{margin:8px 0 6px;font-size:14px}
 .card h3 + .help,.card h2 + .help{margin-top:0}
 .notice{font-size:12px;line-height:1.45}
 @media(max-width:760px){.app{padding:8px}.card,.result,.notice{padding:10px;margin-bottom:8px}.report-table{font-size:11px}.report-table th,.report-table td{padding:5px 6px}.primary,.secondary{padding:8px 10px}.tab{padding:7px 10px}.hero h1{font-size:21px}}
+/* Ver 9.0.2 tariff data validation */
+.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:800;line-height:1}
+.badge.ok{background:#ecfdf3;color:#027a48;border:1px solid #abefc6}
+.badge.warn{background:#fffaeb;color:#b54708;border:1px solid #fedf89}
+.badge.danger{background:#fef3f2;color:#b42318;border:1px solid #fecdca}

@@ -8,6 +8,62 @@ const timeRanges = {};
 let appTariffVersion = (typeof TARIFF_VERSION !== 'undefined') ? TARIFF_VERSION : '요금표 기준 미지정';
 let appTariffs = (typeof TARIFFS !== 'undefined') ? TARIFFS : [];
 let tariffJsonStatus = '내장 요금표 사용';
+let appTariffValidation = {ok:true, errors:[], warnings:[]};
+
+function validateTariffData(data){
+  const errors=[];
+  const warnings=[];
+  const contracts = Array.isArray(data?.contracts) ? data.contracts : [];
+  const seasons=['summer','springAutumn','winter'];
+  const loadKinds=['light','mid','peak'];
+  if(!data || typeof data!=='object') errors.push('요금 데이터 형식이 올바르지 않습니다.');
+  if(!contracts.length) errors.push('계약종별 데이터가 없습니다.');
+  if(!data?.version && !data?.effectiveDate) warnings.push('요금표 기준일(version 또는 effectiveDate)이 없습니다.');
+  const ids=new Set();
+  contracts.forEach((t,idx)=>{
+    const name=t?.label || t?.id || `계약종별 ${idx+1}`;
+    if(!t?.id) errors.push(`${name}: id가 없습니다.`);
+    if(t?.id){ if(ids.has(t.id)) errors.push(`${name}: id가 중복됩니다.`); ids.add(t.id); }
+    if(!t?.label) errors.push(`${name}: label이 없습니다.`);
+    if(!['tou','flat'].includes(t?.type)) errors.push(`${name}: type은 tou 또는 flat이어야 합니다.`);
+    if(!Number.isFinite(Number(t?.basic)) || Number(t.basic)<=0) errors.push(`${name}: 기본요금이 숫자가 아닙니다.`);
+    else if(Number(t.basic)>100000) warnings.push(`${name}: 기본요금이 비정상적으로 큽니다.`);
+    if(t?.type==='tou'){
+      seasons.forEach(season=>{
+        if(!t.energy || !t.energy[season]) errors.push(`${name}: ${seasonsShortKo[season]||season} 요금이 없습니다.`);
+        else loadKinds.forEach(k=>{
+          const v=t.energy[season][k];
+          if(!Number.isFinite(Number(v)) || Number(v)<=0) errors.push(`${name}: ${seasonsShortKo[season]||season} ${loadKo[k]||k} 단가가 숫자가 아닙니다.`);
+          else if(Number(v)>1000) warnings.push(`${name}: ${seasonsShortKo[season]||season} ${loadKo[k]||k} 단가가 비정상적으로 큽니다.`);
+        });
+      });
+    }else if(t?.type==='flat'){
+      seasons.forEach(season=>{
+        const v=t?.energy?.[season];
+        if(!Number.isFinite(Number(v)) || Number(v)<=0) errors.push(`${name}: ${seasonsShortKo[season]||season} 단가가 숫자가 아닙니다.`);
+        else if(Number(v)>1000) warnings.push(`${name}: ${seasonsShortKo[season]||season} 단가가 비정상적으로 큽니다.`);
+      });
+    }
+  });
+  if(typeof TARIFFS!=='undefined' && Array.isArray(TARIFFS) && TARIFFS.length && contracts.length !== TARIFFS.length){
+    warnings.push(`계약종별 개수가 내장 기준(${TARIFFS.length}개)과 다릅니다. 현재 ${contracts.length}개입니다.`);
+  }
+  return {ok:errors.length===0, errors, warnings, contractCount:contracts.length};
+}
+function validationBadge(v){
+  if(!v) return '';
+  if(v.errors?.length) return `<span class="badge danger">검사 실패</span>`;
+  if(v.warnings?.length) return `<span class="badge warn">확인 필요</span>`;
+  return `<span class="badge ok">검사 통과</span>`;
+}
+function validationList(v){
+  if(!v) return '';
+  const rows=[];
+  if(v.errors?.length) rows.push(`<tr><th>오류</th><td>${v.errors.map(esc).join('<br>')}</td></tr>`);
+  if(v.warnings?.length) rows.push(`<tr><th>확인사항</th><td>${v.warnings.map(esc).join('<br>')}</td></tr>`);
+  if(!rows.length) rows.push('<tr><th>데이터 검사</th><td>필수 항목과 단가 형식이 정상입니다.</td></tr>');
+  return `<div class="table-wrap"><table class="report-table"><tbody>${rows.join('')}</tbody></table></div>`;
+}
 
 function getTariffs(){ return appTariffs && appTariffs.length ? appTariffs : ((typeof TARIFFS !== 'undefined') ? TARIFFS : []); }
 
@@ -16,12 +72,15 @@ async function loadTariffJson(){
     const res = await fetch('tariff.json', {cache:'no-store'});
     if(!res.ok) throw new Error('tariff.json 없음');
     const data = await res.json();
+    const validation = validateTariffData(data);
+    if(!validation.ok) throw new Error(validation.errors.join(' / '));
     const contracts = Array.isArray(data.contracts) ? data.contracts : [];
-    if(!contracts.length) throw new Error('계약종별 데이터 없음');
+    appTariffValidation = validation;
     appTariffs = contracts;
     appTariffVersion = data.effectiveDate || data.version || appTariffVersion;
-    tariffJsonStatus = `외부 요금표 적용 (${appTariffVersion} 시행, ${contracts.length}개 계약종별)`;
+    tariffJsonStatus = `요금표 적용 (${appTariffVersion} 시행, ${contracts.length}개 계약종별)`;
   }catch(e){
+    appTariffValidation = {ok:true, errors:[], warnings:[`외부 tariff.json 미적용: ${e.message}`]};
     tariffJsonStatus = `내장 요금표 사용 (${appTariffVersion} 시행)`;
   }
 }
@@ -275,9 +334,9 @@ function initTariffAdmin(){
   box.innerHTML=`<div class="table-wrap"><table class="report-table"><tbody>
     <tr><th>현재 요금표 기준</th><td>${tariffVersionText()} 시행</td></tr>
     <tr><th>탑재 계약종별</th><td>${getTariffs().length}개 (시간대별 ${touCount}개, 단일요금 ${flatCount}개)</td></tr>
+    <tr><th>데이터 검사</th><td>${validationBadge(appTariffValidation)}</td></tr>
     <tr><th>계절 기준</th><td>${tariffSeasonBasisText()}</td></tr>
-    <tr><th>관리 방식</th><td>PDF 분석 → tariff.json 생성 → GitHub에 tariff.json 교체</td></tr>
-  </tbody></table></div>${kepcoTimeGuideHtml()}`;
+  </tbody></table></div>${validationList(appTariffValidation)}${kepcoTimeGuideHtml()}`;
   $('tariffPdfAnalyze')?.addEventListener('click', analyzeTariffPdf);
   $('tariffPdfClear')?.addEventListener('click', clearTariffPdfResult);
 }
