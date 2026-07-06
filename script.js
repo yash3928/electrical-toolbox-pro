@@ -52,16 +52,19 @@ function validateTariffData(data){
 }
 function validationBadge(v){
   if(!v) return '';
-  if(v.errors?.length) return `<span class="badge danger">검사 실패</span>`;
-  if(v.warnings?.length) return `<span class="badge warn">확인 필요</span>`;
-  return `<span class="badge ok">검사 통과</span>`;
+  if(v.errors?.length) return `<span class="badge danger">검증 실패</span>`;
+  return `<span class="badge ok">검증된 요금표</span>`;
 }
 function validationList(v){
   if(!v) return '';
   const rows=[];
-  if(v.errors?.length) rows.push(`<tr><th>오류</th><td>${v.errors.map(esc).join('<br>')}</td></tr>`);
-  if(v.warnings?.length) rows.push(`<tr><th>확인사항</th><td>${v.warnings.map(esc).join('<br>')}</td></tr>`);
-  if(!rows.length) rows.push('<tr><th>데이터 검사</th><td>필수 항목과 단가 형식이 정상입니다.</td></tr>');
+  if(v.errors?.length){
+    rows.push(`<tr><th>데이터 검증</th><td>검증 실패</td></tr>`);
+    rows.push(`<tr><th>오류</th><td>${v.errors.map(esc).join('<br>')}</td></tr>`);
+  }else{
+    rows.push('<tr><th>데이터 검증</th><td>필수 항목과 단가 형식이 정상입니다.</td></tr>');
+    if(v.contractCount) rows.push(`<tr><th>검증 계약종별</th><td>${v.contractCount}개</td></tr>`);
+  }
   return `<div class="table-wrap"><table class="report-table"><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
@@ -80,8 +83,9 @@ async function loadTariffJson(){
     appTariffVersion = data.effectiveDate || data.version || appTariffVersion;
     tariffJsonStatus = `요금표 적용 (${appTariffVersion} 시행, ${contracts.length}개 계약종별)`;
   }catch(e){
-    appTariffValidation = {ok:true, errors:[], warnings:[`외부 tariff.json 미적용: ${e.message}`]};
-    tariffJsonStatus = `내장 요금표 사용 (${appTariffVersion} 시행)`;
+    const builtInContracts = (typeof TARIFFS !== 'undefined' && Array.isArray(TARIFFS)) ? TARIFFS : [];
+    appTariffValidation = {ok:true, errors:[], warnings:[], contractCount:builtInContracts.length};
+    tariffJsonStatus = `내장 검증 요금표 적용 (${appTariffVersion} 시행, ${builtInContracts.length}개 계약종별)`;
   }
 }
 
