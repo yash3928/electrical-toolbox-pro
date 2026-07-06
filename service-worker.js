@@ -1,4 +1,4 @@
-const CACHE_NAME = 'electric-toolbox-pwa-v10.2.0';
+const CACHE_NAME = 'electric-toolbox-pwa-v10.4.0';
 const APP_ASSETS = [
   './',
   './index.html',
@@ -6,11 +6,12 @@ const APP_ASSETS = [
   './script.js',
   './database.js',
   './tariff.json',
-  './manifest.json',
-  './icons/icon.svg',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './manifest.json?v=10.4.0',
+  './icons/icon-lightning.svg',
+  './icons/icon-lightning-192.png',
+  './icons/icon-lightning-512.png',
+  './apple-touch-icon.png',
+  './favicon.png'
 ];
 
 self.addEventListener('install', (event) => {
