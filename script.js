@@ -116,14 +116,14 @@ function pickCable(inA){return CABLES.find(c=>c.iz>=inA) || CABLES[CABLES.length
 function compressionLugBySq(sq){
   const v=Number(sq);
   const rows=[
-    {max:1.5, lug:'R1.5', range:'1.5SQ 이하', bolts:['M3.5','M4']},
-    {max:2.5, lug:'R2.5', range:'2.5SQ', bolts:['M4','M5']},
-    {max:4, lug:'R4', range:'4SQ', bolts:['M4','M5']},
-    {max:6, lug:'R6', range:'6SQ', bolts:['M5','M6']},
-    {max:10, lug:'R10', range:'10SQ', bolts:['M5','M6','M8']},
-    {max:16, lug:'R16', range:'16SQ', bolts:['M6','M8']},
-    {max:25, lug:'R25', range:'25SQ', bolts:['M6','M8','M10']},
-    {max:35, lug:'R35', range:'35SQ', bolts:['M8','M10']},
+    {max:1.5, lug:'R1.5', range:'1.5SQ 이하', bolts:['M3','M4','M5']},
+    {max:2.5, lug:'R2.5', range:'2.5SQ', bolts:['M4','M5','M6']},
+    {max:4, lug:'R4', range:'4SQ', bolts:['M4','M5','M6']},
+    {max:6, lug:'R6', range:'6SQ', bolts:['M5','M6','M8']},
+    {max:10, lug:'R10', range:'10SQ', bolts:['M6','M8','M10']},
+    {max:16, lug:'R16', range:'16SQ', bolts:['M6','M8','M10']},
+    {max:25, lug:'R25', range:'25SQ', bolts:['M8','M10','M12']},
+    {max:35, lug:'R35', range:'35SQ', bolts:['M8','M10','M12']},
     {max:50, lug:'R50', range:'50SQ', bolts:['M8','M10','M12']},
     {max:70, lug:'R70', range:'70SQ', bolts:['M10','M12']},
     {max:95, lug:'R95', range:'95SQ', bolts:['M10','M12','M14']}
