@@ -90,7 +90,7 @@ async function loadTariffJson(){
 }
 
 function init(){
-  initTabs(); initMaterial(); initConduit(); initCable(); initTerminalBlock(); initSaving(); initTariffAdmin();
+  initTabs(); initConverter(); initMaterial(); initConduit(); initCable(); initTerminalBlock(); initSaving(); initTariffAdmin();
 }
 document.addEventListener('DOMContentLoaded', async()=>{ await loadTariffJson(); init(); });
 
@@ -98,6 +98,73 @@ function initTabs(){ qsa('.tab').forEach(btn=>btn.addEventListener('click',()=>{
 function won(n){return Math.round(Number(n)||0).toLocaleString('ko-KR')+'원'}
 function num(n,d=1){return (Number(n)||0).toLocaleString('ko-KR',{maximumFractionDigits:d})}
 function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+
+// ===== Converter =====
+function initConverter(){
+  $('convBtn')?.addEventListener('click', renderConverter);
+  $('convReset')?.addEventListener('click', resetConverter);
+  $('convPhase')?.addEventListener('change', ()=>{
+    if($('convPhase').value==='single' && (!$('convVolt').value || Number($('convVolt').value)===380)) $('convVolt').value='220';
+    if($('convPhase').value==='three' && (!$('convVolt').value || Number($('convVolt').value)===220)) $('convVolt').value='380';
+  });
+}
+function fmtVal(v,d=3){
+  if(!Number.isFinite(v)) return '-';
+  return Number(v).toLocaleString('ko-KR',{maximumFractionDigits:d});
+}
+function addConvRow(rows,label,value,unit,note=''){
+  if(value===null || value===undefined || value==='') return;
+  rows.push(`<tr><th>${label}</th><td>${value}${unit?` ${unit}`:''}</td><td>${note}</td></tr>`);
+}
+function renderConverter(){
+  const rows=[];
+  const hp=Number($('convHp')?.value);
+  if(hp>0) addConvRow(rows,'HP → kW',fmtVal(hp*0.746,3),'kW','1HP = 0.746kW 기준');
+  const kwToHp=Number($('convKwToHp')?.value);
+  if(kwToHp>0) addConvRow(rows,'kW → HP',fmtVal(kwToHp/0.746,2),'HP','1HP = 0.746kW 기준');
+  const watt=Number($('convW')?.value);
+  if(watt>0) addConvRow(rows,'W → kW',fmtVal(watt/1000,3),'kW','1kW = 1,000W');
+  const kwToW=Number($('convKwToW')?.value);
+  if(kwToW>0) addConvRow(rows,'kW → W',fmtVal(kwToW*1000,0),'W','1kW = 1,000W');
+  const kwKva=Number($('convKwToKva')?.value), pfKva=Number($('convPfKva')?.value)||0;
+  if(kwKva>0 && pfKva>0) addConvRow(rows,'kW → kVA',fmtVal(kwKva/pfKva,3),'kVA',`PF ${fmtVal(pfKva,2)} 기준`);
+  const amp=Number($('convAmp')?.value), volt=Number($('convVolt')?.value), pfAmp=Number($('convPfAmp')?.value)||0, phase=$('convPhase')?.value;
+  if(amp>0 && volt>0 && pfAmp>0){
+    const kw = phase==='three' ? Math.sqrt(3)*volt*amp*pfAmp/1000 : volt*amp*pfAmp/1000;
+    addConvRow(rows,'A → kW',fmtVal(kw,3),'kW',`${phase==='three'?'삼상':'단상'} ${fmtVal(volt,0)}V, PF ${fmtVal(pfAmp,2)} 기준`);
+  }
+  const ma=Number($('convMa')?.value);
+  if(Number.isFinite(ma) && ma>0){
+    const pct=(ma-4)/16*100;
+    addConvRow(rows,'4~20mA → %',fmtVal(pct,2),'%','4mA=0%, 20mA=100% 기준');
+  }
+  const pct=Number($('convPercent')?.value);
+  if(Number.isFinite(pct) && pct>=0){
+    const maOut=4+(pct/100)*16;
+    addConvRow(rows,'% → 4~20mA',fmtVal(maOut,3),'mA','4mA=0%, 20mA=100% 기준');
+  }
+  const hz=Number($('convHz')?.value), pole=Number($('convPole')?.value)||4;
+  if(hz>0) addConvRow(rows,'Hz → RPM',fmtVal(120*hz/pole,0),'rpm',`${pole}극 동기속도 기준`);
+
+  const box=$('convResult');
+  if(!box) return;
+  if(!rows.length){
+    box.innerHTML='<div class="basis">변환할 값을 하나 이상 입력하세요.</div>';
+  }else{
+    box.innerHTML=`<div class="card"><h3>변환 결과</h3><div class="actions"><button class="secondary" onclick="copyElementText('convResult')">결과 복사</button></div><div class="table-wrap"><table class="report-table"><thead><tr><th>항목</th><th>결과</th><th>기준</th></tr></thead><tbody>${rows.join('')}</tbody></table></div><div class="basis">모터 실제 회전수는 슬립 때문에 동기속도보다 낮을 수 있습니다. A→kW 변환은 간이 계산이며 실제 부하·효율·역률에 따라 달라질 수 있습니다.</div></div>`;
+  }
+  box.classList.remove('hidden');
+}
+function resetConverter(){
+  ['convHp','convKwToHp','convW','convKwToW','convKwToKva','convAmp','convMa','convPercent','convHz'].forEach(id=>{ if($(id)) $(id).value=''; });
+  if($('convPfKva')) $('convPfKva').value='0.90';
+  if($('convPhase')) $('convPhase').value='three';
+  if($('convVolt')) $('convVolt').value='380';
+  if($('convPfAmp')) $('convPfAmp').value='0.90';
+  if($('convPole')) $('convPole').value='4';
+  $('convResult')?.classList.add('hidden');
+}
 
 // ===== Material =====
 function initMaterial(){

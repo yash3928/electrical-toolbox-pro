@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="전기 실무 Toolbox" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css?v=10.2.0" />
+  <link rel="stylesheet" href="style.css?v=10.6.0" />
 </head>
 <body>
   <main class="app">
@@ -22,15 +22,61 @@
     </header>
 
     <nav class="tabs" aria-label="메뉴">
-      <button class="tab active" data-tab="material">부하 기준 자재 선정</button>
-      <button class="tab" data-tab="conduit">전선관 부속 선정</button>
-      <button class="tab" data-tab="cable">케이블 압착단자 선정</button>
-      <button class="tab" data-tab="terminalBlock">단자대 규격별 자재 선정</button>
-      <button class="tab" data-tab="saving">전력절감 검토</button>
-      <button class="tab" data-tab="tariffAdmin">한전 요금 관리</button>
+      <button class="tab active" data-tab="converter">전기변환기</button>
+      <button class="tab" data-tab="material">자재선정</button>
+      <button class="tab" data-tab="saving">전력절감</button>
+      <button class="tab" data-tab="tariffAdmin">전기요금</button>
     </nav>
 
-    <section id="material" class="panel active">
+    <section id="converter" class="panel active">
+      <div class="card">
+        <h2>전기변환기</h2>
+        <p class="help">현장에서 자주 사용하는 전기 단위와 신호 값을 빠르게 변환합니다.</p>
+        <div class="grid converter-grid">
+          <label>HP → kW
+            <input id="convHp" type="number" step="0.01" min="0" placeholder="예: 5" />
+          </label>
+          <label>kW → HP
+            <input id="convKwToHp" type="number" step="0.01" min="0" placeholder="예: 3.7" />
+          </label>
+          <label>W → kW
+            <input id="convW" type="number" step="1" min="0" placeholder="예: 3000" />
+          </label>
+          <label>kW → W
+            <input id="convKwToW" type="number" step="0.01" min="0" placeholder="예: 3" />
+          </label>
+          <label>kW → kVA
+            <input id="convKwToKva" type="number" step="0.01" min="0" placeholder="예: 10" />
+          </label>
+          <label>역률 PF
+            <input id="convPfKva" type="number" step="0.01" min="0.1" max="1" value="0.90" />
+          </label>
+          <label>전류 A → kW</label>
+          <div class="sub-grid">
+            <select id="convPhase"><option value="three">삼상</option><option value="single">단상</option></select>
+            <input id="convAmp" type="number" step="0.01" min="0" placeholder="전류 A" />
+            <input id="convVolt" type="number" step="1" min="0" value="380" placeholder="전압 V" />
+            <input id="convPfAmp" type="number" step="0.01" min="0.1" max="1" value="0.90" placeholder="PF" />
+          </div>
+          <label>4~20mA → %
+            <input id="convMa" type="number" step="0.001" min="0" placeholder="예: 15.364" />
+          </label>
+          <label>% → 4~20mA
+            <input id="convPercent" type="number" step="0.01" min="0" max="100" placeholder="예: 50" />
+          </label>
+          <label>Hz → RPM
+            <input id="convHz" type="number" step="0.01" min="0" placeholder="예: 60" />
+          </label>
+          <label>극수
+            <select id="convPole"><option value="2">2극</option><option value="4" selected>4극</option><option value="6">6극</option><option value="8">8극</option></select>
+          </label>
+        </div>
+        <div class="actions"><button id="convBtn" class="primary">변환</button><button id="convReset" class="secondary">초기화</button></div>
+      </div>
+      <div id="convResult" class="result hidden"></div>
+    </section>
+
+    <section id="material" class="panel">
       <div class="card">
         <h2>부하 기준 자재 선정</h2>
         <p class="help">부하용량을 기준으로 설계전류를 계산하고, KEC 검토와 국내 표준 자재 추천을 함께 표시합니다.</p>
@@ -170,8 +216,8 @@
     <section class="notice"><strong>주의</strong> 본 도구는 KEC, 한전 요금표, 국내 표준 자재 기준을 활용한 실무 보조용입니다. 최종 설계·시공 전 최신 규정, 포설조건, 제조사 치수, 사내 기준을 확인하세요.</section>
   </main>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="database.js?v=10.2.0"></script>
-  <script src="script.js?v=10.2.0"></script>
+  <script src="database.js?v=10.6.0"></script>
+  <script src="script.js?v=10.6.0"></script>
   <script>
     (function () {
       function showUpdateNotice(registration) {
