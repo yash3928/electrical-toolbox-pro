@@ -101,70 +101,32 @@ function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 
 
 // ===== Converter =====
+const AWG_SQ_TABLE = [
+  {awg:'26', sq:0.13}, {awg:'24', sq:0.20}, {awg:'22', sq:0.33}, {awg:'20', sq:0.52},
+  {awg:'18', sq:0.82}, {awg:'16', sq:1.31}, {awg:'14', sq:2.08}, {awg:'12', sq:3.31},
+  {awg:'10', sq:5.26}, {awg:'8', sq:8.37}, {awg:'6', sq:13.3}, {awg:'4', sq:21.2},
+  {awg:'2', sq:33.6}, {awg:'1', sq:42.4}, {awg:'1/0', sq:53.5}, {awg:'2/0', sq:67.4},
+  {awg:'3/0', sq:85.0}, {awg:'4/0', sq:107.2}
+];
+let converterLock = false;
+function setVal(id, val, digits=2){ const el=$(id); if(el) el.value = Number.isFinite(Number(val)) ? Number(val).toFixed(digits).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1') : ''; }
 function initConverter(){
-  $('convBtn')?.addEventListener('click', renderConverter);
-  $('convReset')?.addEventListener('click', resetConverter);
-  $('convPhase')?.addEventListener('change', ()=>{
-    if($('convPhase').value==='single' && (!$('convVolt').value || Number($('convVolt').value)===380)) $('convVolt').value='220';
-    if($('convPhase').value==='three' && (!$('convVolt').value || Number($('convVolt').value)===220)) $('convVolt').value='380';
-  });
+  if(!$('convHp')) return;
+  $('convAwg').innerHTML = '<option value="">선택</option>' + AWG_SQ_TABLE.map(x=>`<option value="${x.awg}">AWG ${x.awg}</option>`).join('');
+  $('convSq').innerHTML = '<option value="">선택</option>' + AWG_SQ_TABLE.map(x=>`<option value="${x.sq}">${x.sq} SQ</option>`).join('');
+  $('convHp').addEventListener('input', ()=>{ if(converterLock) return; converterLock=true; const hp=Number($('convHp').value); setVal('convKw', hp>0 ? hp*0.746 : '', 3); converterLock=false; });
+  $('convKw').addEventListener('input', ()=>{ if(converterLock) return; converterLock=true; const kw=Number($('convKw').value); setVal('convHp', kw>0 ? kw/0.746 : '', 3); converterLock=false; });
+  $('convMa').addEventListener('input', ()=>{ if(converterLock) return; converterLock=true; const ma=Number($('convMa').value); setVal('convPercent', Number.isFinite(ma) ? (ma-4)/16*100 : '', 2); converterLock=false; });
+  $('convPercent').addEventListener('input', ()=>{ if(converterLock) return; converterLock=true; const pct=Number($('convPercent').value); setVal('convMa', Number.isFinite(pct) ? 4+(pct/100*16) : '', 3); converterLock=false; });
+  $('convHz').addEventListener('input', calcHzRpmFromHz);
+  $('convRpm').addEventListener('input', calcHzRpmFromRpm);
+  $('convPoles').addEventListener('change', ()=>{ if($('convHz').value) calcHzRpmFromHz(); else if($('convRpm').value) calcHzRpmFromRpm(); });
+  $('convAwg').addEventListener('change', ()=>{ const r=AWG_SQ_TABLE.find(x=>x.awg===$('convAwg').value); $('convSq').value = r ? String(r.sq) : ''; });
+  $('convSq').addEventListener('change', ()=>{ const r=AWG_SQ_TABLE.find(x=>String(x.sq)===$('convSq').value); $('convAwg').value = r ? r.awg : ''; });
+  $('convReset').addEventListener('click', ()=>['convHp','convKw','convMa','convPercent','convHz','convRpm'].forEach(id=>$(id).value='') || (($('convAwg').value=''),($('convSq').value=''),($('convPoles').value='4')));
 }
-function fmtVal(v,d=3){
-  if(!Number.isFinite(v)) return '-';
-  return Number(v).toLocaleString('ko-KR',{maximumFractionDigits:d});
-}
-function addConvRow(rows,label,value,unit,note=''){
-  if(value===null || value===undefined || value==='') return;
-  rows.push(`<tr><th>${label}</th><td>${value}${unit?` ${unit}`:''}</td><td>${note}</td></tr>`);
-}
-function renderConverter(){
-  const rows=[];
-  const hp=Number($('convHp')?.value);
-  if(hp>0) addConvRow(rows,'HP → kW',fmtVal(hp*0.746,3),'kW','1HP = 0.746kW 기준');
-  const kwToHp=Number($('convKwToHp')?.value);
-  if(kwToHp>0) addConvRow(rows,'kW → HP',fmtVal(kwToHp/0.746,2),'HP','1HP = 0.746kW 기준');
-  const watt=Number($('convW')?.value);
-  if(watt>0) addConvRow(rows,'W → kW',fmtVal(watt/1000,3),'kW','1kW = 1,000W');
-  const kwToW=Number($('convKwToW')?.value);
-  if(kwToW>0) addConvRow(rows,'kW → W',fmtVal(kwToW*1000,0),'W','1kW = 1,000W');
-  const kwKva=Number($('convKwToKva')?.value), pfKva=Number($('convPfKva')?.value)||0;
-  if(kwKva>0 && pfKva>0) addConvRow(rows,'kW → kVA',fmtVal(kwKva/pfKva,3),'kVA',`PF ${fmtVal(pfKva,2)} 기준`);
-  const amp=Number($('convAmp')?.value), volt=Number($('convVolt')?.value), pfAmp=Number($('convPfAmp')?.value)||0, phase=$('convPhase')?.value;
-  if(amp>0 && volt>0 && pfAmp>0){
-    const kw = phase==='three' ? Math.sqrt(3)*volt*amp*pfAmp/1000 : volt*amp*pfAmp/1000;
-    addConvRow(rows,'A → kW',fmtVal(kw,3),'kW',`${phase==='three'?'삼상':'단상'} ${fmtVal(volt,0)}V, PF ${fmtVal(pfAmp,2)} 기준`);
-  }
-  const ma=Number($('convMa')?.value);
-  if(Number.isFinite(ma) && ma>0){
-    const pct=(ma-4)/16*100;
-    addConvRow(rows,'4~20mA → %',fmtVal(pct,2),'%','4mA=0%, 20mA=100% 기준');
-  }
-  const pct=Number($('convPercent')?.value);
-  if(Number.isFinite(pct) && pct>=0){
-    const maOut=4+(pct/100)*16;
-    addConvRow(rows,'% → 4~20mA',fmtVal(maOut,3),'mA','4mA=0%, 20mA=100% 기준');
-  }
-  const hz=Number($('convHz')?.value), pole=Number($('convPole')?.value)||4;
-  if(hz>0) addConvRow(rows,'Hz → RPM',fmtVal(120*hz/pole,0),'rpm',`${pole}극 동기속도 기준`);
-
-  const box=$('convResult');
-  if(!box) return;
-  if(!rows.length){
-    box.innerHTML='<div class="basis">변환할 값을 하나 이상 입력하세요.</div>';
-  }else{
-    box.innerHTML=`<div class="card"><h3>변환 결과</h3><div class="actions"><button class="secondary" onclick="copyElementText('convResult')">결과 복사</button></div><div class="table-wrap"><table class="report-table"><thead><tr><th>항목</th><th>결과</th><th>기준</th></tr></thead><tbody>${rows.join('')}</tbody></table></div><div class="basis">모터 실제 회전수는 슬립 때문에 동기속도보다 낮을 수 있습니다. A→kW 변환은 간이 계산이며 실제 부하·효율·역률에 따라 달라질 수 있습니다.</div></div>`;
-  }
-  box.classList.remove('hidden');
-}
-function resetConverter(){
-  ['convHp','convKwToHp','convW','convKwToW','convKwToKva','convAmp','convMa','convPercent','convHz'].forEach(id=>{ if($(id)) $(id).value=''; });
-  if($('convPfKva')) $('convPfKva').value='0.90';
-  if($('convPhase')) $('convPhase').value='three';
-  if($('convVolt')) $('convVolt').value='380';
-  if($('convPfAmp')) $('convPfAmp').value='0.90';
-  if($('convPole')) $('convPole').value='4';
-  $('convResult')?.classList.add('hidden');
-}
+function calcHzRpmFromHz(){ if(converterLock) return; converterLock=true; const hz=Number($('convHz').value), poles=Number($('convPoles').value)||4; setVal('convRpm', hz>0 ? 120*hz/poles : '', 0); converterLock=false; }
+function calcHzRpmFromRpm(){ if(converterLock) return; converterLock=true; const rpm=Number($('convRpm').value), poles=Number($('convPoles').value)||4; setVal('convHz', rpm>0 ? rpm*poles/120 : '', 2); converterLock=false; }
 
 // ===== Material =====
 function initMaterial(){
@@ -218,7 +180,7 @@ function recommendMaterial(){
     const at = pickBreaker(demand); const frame=pickFrame(at); const cable=pickCable(at);
     const loc=LOCATION_RULES[$('matLocation').value]; const conduitType=loc.conduitType; const conduitSize=cable.sq<=4?22:cable.sq<=10?28:cable.sq<=25?36:cable.sq<=50?42:54;
     const fit=CONDUIT_ACCESSORIES[conduitType].fittings(conduitSize);
-    $('matResult').innerHTML = `<div class="card"><h3>결과</h3><div class="actions"><button class="secondary" onclick="copyElementText('matResult')">결과 복사</button></div><div class="table-wrap"><table class="report-table"><tbody><tr><th>전원 방식</th><td>${phase==='three'?'삼상 380V':'단상 220V'}</td></tr><tr><th>부하용량</th><td>${num(kw,2)}kW${motor?` (${(MOTOR_SIZES.find(m=>Number(m.kw)===kw)||{}).hp||''}HP)`:''}</td></tr><tr><th>설계전류</th><td>${num(ib,2)}A</td></tr></tbody></table></div><h4>추천 자재</h4><div class="table-wrap"><table class="report-table"><tbody><tr><th>MCCB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>ELB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>케이블</th><td>CV ${phase==='three'?'4C':'3C'} × ${cable.sq}SQ</td></tr><tr><th>도체 구성</th><td>${phase==='three'?'R / S / T / PE':'L / N / PE'}</td></tr><tr><th>압착단자</th><td>${terminalRecommendation(cable.sq)}</td></tr><tr><th>단자대</th><td>${at<=30?'30A':at<=60?'60A':at<=100?'100A':at<=200?'200A':'제조사 확인'} ${phase==='three'?'4P':'2P'}</td></tr><tr><th>전선관</th><td>${conduitType}${conduitSize}</td></tr><tr><th>부속</th><td>${fit.connector}, ${fit.insert}, ${fit.saddle}</td></tr><tr><th>홀커터</th><td>${HOLE_CUTTERS[conduitSize]}</td></tr></tbody></table></div><h4>KEC 검토</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>기호</th><th>의미</th><th>값</th></tr></thead><tbody><tr><td>IB</td><td>설계전류</td><td class="right">${num(ib,2)}A</td></tr><tr><td>In</td><td>차단기 정격전류</td><td class="right">${at}A</td></tr><tr><td>Iz</td><td>전선 허용전류</td><td class="right">${cable.iz}A</td></tr></tbody></table></div><div class="basis">KEC 검토: IB ≤ In ≤ Iz 조건 ${ib<=at&&at<=cable.iz?'만족':'확인 필요'}. 실제 현장 적용 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류를 확인하세요.</div></div>`;
+    $('matResult').innerHTML = `<div class="card"><h3>결과</h3><div class="actions"><button class="secondary" onclick="copyElementText('matResult')">결과 복사</button></div><div class="table-wrap"><table class="report-table"><tbody><tr><th>전원 방식</th><td>${phase==='three'?'삼상 380V':'단상 220V'}</td></tr><tr><th>부하용량</th><td>${num(kw,2)}kW${motor?` (${(MOTOR_SIZES.find(m=>Number(m.kw)===kw)||{}).hp||''}HP)`:''}</td></tr><tr><th>설계전류</th><td>${num(ib,2)}A</td></tr></tbody></table></div><h4>추천 자재</h4><div class="table-wrap"><table class="report-table"><tbody><tr><th>MCCB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>ELB</th><td>${phase==='three'?'3P':'2P'} ${frame}AF / ${at}AT</td></tr><tr><th>감도전류</th><td>일반 회로 30mA 권장<br>인버터·UPS 등 누설전류가 큰 설비는 현장 기준에 따라 100~200mA 적용 검토</td></tr><tr><th>케이블</th><td>CV ${phase==='three'?'4C':'3C'} × ${cable.sq}SQ</td></tr><tr><th>도체 구성</th><td>${phase==='three'?'R / S / T / PE':'L / N / PE'}</td></tr><tr><th>압착단자</th><td>${terminalRecommendation(cable.sq)}</td></tr><tr><th>단자대</th><td>${at<=30?'30A':at<=60?'60A':at<=100?'100A':at<=200?'200A':'제조사 확인'} ${phase==='three'?'4P':'2P'}</td></tr><tr><th>전선관</th><td>${conduitType}${conduitSize}</td></tr><tr><th>부속</th><td>${fit.connector}, ${fit.insert}, ${fit.saddle}</td></tr><tr><th>홀커터</th><td>${HOLE_CUTTERS[conduitSize]}<br><span class="small">커넥터 체결용 권장 규격</span></td></tr></tbody></table></div><h4>KEC 검토</h4><div class="table-wrap"><table class="report-table"><thead><tr><th>기호</th><th>의미</th><th>값</th></tr></thead><tbody><tr><td>IB</td><td>설계전류</td><td class="right">${num(ib,2)}A</td></tr><tr><td>In</td><td>차단기 정격전류</td><td class="right">${at}A</td></tr><tr><td>Iz</td><td>전선 허용전류</td><td class="right">${cable.iz}A</td></tr></tbody></table></div><div class="basis">KEC 검토: IB ≤ In ≤ Iz 조건 ${ib<=at&&at<=cable.iz?'만족':'확인 필요'}. 실제 현장 적용 전 포설방법, 주위온도, 집합보정, 전압강하, 단락전류를 확인하세요.</div></div>`;
     $('matResult').classList.remove('hidden');
   }catch(e){alert(e.message)}
 }

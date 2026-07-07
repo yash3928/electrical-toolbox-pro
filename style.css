@@ -58,7 +58,8 @@ h4{margin:8px 0 6px;font-size:14px}
   }
 }
 
-/* Ver 10.6 electrical converter */
-.converter-grid .sub-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;align-items:end}
-.converter-grid label{min-height:56px}
-@media(max-width:760px){.converter-grid .sub-grid{grid-template-columns:1fr 1fr}}
+/* Ver 10.7: converter */
+.converter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.converter-box{border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px}
+.converter-box h3{margin:0 0 8px;font-size:15px}
+@media(max-width:760px){.converter-grid{grid-template-columns:1fr}}
