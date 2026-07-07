@@ -12,7 +12,6 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <link rel="stylesheet" href="style.css?v=10.2.0" />
-  <link rel="stylesheet" href="inverter-guide.css" />
 </head>
 <body>
   <main class="app">
@@ -28,7 +27,6 @@
       <button class="tab" data-tab="cable">케이블 압착단자 선정</button>
       <button class="tab" data-tab="terminalBlock">단자대 규격별 자재 선정</button>
       <button class="tab" data-tab="saving">전력절감 검토</button>
-      <button class="tab" data-tab="inverter">인버터 실무</button>
       <button class="tab" data-tab="tariffAdmin">한전 요금 관리</button>
     </nav>
 
@@ -147,35 +145,6 @@
     </section>
 
 
-    <section id="inverter" class="panel">
-  <div class="card">
-    <h2>인버터 실무 가이드</h2>
-    <p>모델별 에러코드, 파라미터, 단자, 운전방법을 빠르게 확인합니다.</p>
-
-    <label>모델 선택</label>
-    <select id="invModel"></select>
-
-    <label>보기 항목</label>
-    <select id="invTopic">
-      <option value="overview">요약</option>
-      <option value="operation">운전/시운전</option>
-      <option value="fault">에러/트립</option>
-      <option value="param">파라미터</option>
-      <option value="terminal">단자</option>
-      <option value="common">공통 점검</option>
-    </select>
-
-    <label>검색</label>
-    <input id="invSearch" type="text" placeholder="예: OC, PID, P1, 통신, 주파수, 팬" />
-
-    <div class="actions">
-      <button id="invSearchBtn" type="button">조회</button>
-    </div>
-  </div>
-
-  <div id="invResult" class="hidden"></div>
-</section>
-
     <section id="tariffAdmin" class="panel">
       <div class="card">
         <h2>한전 요금표 관리</h2>
@@ -203,8 +172,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="database.js?v=10.2.0"></script>
   <script src="script.js?v=10.2.0"></script>
-  <script src="inverter-guide-data.js"></script>
-  <script src="inverter-guide.js"></script>
   <script>
     (function () {
       function showUpdateNotice(registration) {
