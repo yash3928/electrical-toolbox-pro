@@ -1,2 +1,0 @@
-/* inverter-guide.css */
-.inverter-card h4{margin-top:18px;margin-bottom:8px}.guide-list{margin:8px 0 14px 20px;line-height:1.7}.inverter-search-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.inverter-search-row.full{grid-template-columns:1fr}.inverter-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}@media(max-width:720px){.inverter-search-row{grid-template-columns:1fr}.inverter-card .report-table th,.inverter-card .report-table td{font-size:14px;padding:8px 6px}}
